@@ -1,0 +1,578 @@
+#+TITLE: Write yourself a Git!
+
+# @TODO: Write introduction
+There's a /lot/ of articles out there that all share the same
+fundamental assumption that to learn Git, one must proceed bottom up,
+start by the essential concepts and walk their way up to the
+higher-level features.  This author couldn't agree more, but he often
+disagrees with what most of these articles consider fundamental: too
+fascinated by the Dark Mysteries of =rebase=, virtually none of them
+grants more than a line or two to the humble /commit/.  But as in
+Christian parabolas, pay attention to the humble and you'll be
+rewarded: the whole of Git is in the definition of a commit.
+
+More seriously, you want to learn Git?  Implement it!  Yes, really.
+No, it's not that hard.  I'm not going to assume much: you'll be
+expected to read and write Python (if you think you can't, it's really
+easy, try to go ahead anyway), and to have at least a basic
+familiarity with the fundamental commands of Git and the command
+line.  If you've already used =git add=, =git commit=, =git status= and git
+log, you'll be good!
+
+Of course, our implementation won't be a full-fledged,
+industrial-strength implementation and won't certainly be able to
+compete with the official git or libgit2, but if you go through the
+article, you'll be certain to understand git internals, because you'll
+have implemented them yourself!
+
+But /why/ would one want to understand Git internals?  Because it
+actually makes using Git /much/ easier.  If you really understand what a
+commit is, everything will become trivial, trust me.  And what Git is
+isn't even hard: it's actually so simple that most explanations
+actually confuse it.  Git isn't a burrito.
+
+#+BEGIN_ASIDE
+  The source code for this article is actually a literate program
+  written in [[https://orgmode.org/][Org-Mode]].  You can tangle it from Org-Mode to produce
+  both the program and the test suite.
+#+END_ASIDE
+
+* Contents :TOC_1:
+- [[#getting-started][Getting started]]
+- [[#working-with-repositories][Working with repositories]]
+- [[#reading-and-writing-objects][Reading and writing objects]]
+- [[#actual-git-objects][Actual Git objects]]
+
+* Getting started
+
+We're going to organize our code in a very simple way: we'll have a
+binary, =wyag=, a library, =libwyag.py= and an executable test suite,
+=wyag-tests=.  The binary will just =import= the library, and call its
+main function.  To create it, create a file called =wyag= with these
+contents, and make it executable (~chmod +x wyag~);
+
+#+BEGIN_SRC python :tangle wyag
+  #!/usr/bin/env python3
+  from libwyag import main
+  main()
+#+END_SRC
+
+** Preparing the library
+
+The library must be called =libwyag.py=, and put in the same directory
+as the =wyag= executable.
+
+To begin, we just need a bunch of imports:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  import abc          # Abstract (pure virtual) base class
+  import argparse     # Command-line argument parser
+  import configparser # Ini-like configuration file reader and writer
+  import zlib         # Compression library
+  from hashlib import sha1
+  import os           # Operating system abstraction (for filesystem access)
+  import re           # Regular expressions library
+  import sys          # System functions
+#+END_SRC
+
+And the argument parser we'll use to handle command-line arguments.
+We make use of the nice =argparse= library, which comes built-in with Python.
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argparser = argparse.ArgumentParser()
+  argsubparsers = argparser.add_subparsers(title="Commands", dest="command")
+#+END_SRC
+
+Last but not least, we need to create the =main= function, which the
+executable calls:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  def main(argv=sys.argv[1:]):
+    args = argparser.parse_args(argv)
+
+    globals()["cmd_" + args.command.replace("-", "_")](args)
+#+END_SRC
+
+The last line is a bit convoluted, because I want =wyag= to work even
+before all the functions get created.  Basically, =args= will have a
+field called "command" with the name of the git subcommand the user
+did invoke (=init=, =hash-object=, =ls-files=, ...) as a string.  This line
+replaces =-= with "_" (because =-= is illegal in function names in
+Python), and adds the =cmd_= prefix.  It then looks for a function with
+that name in =globals()=, and calls it with the parsed arguments as its
+only argument.  So basically, to implement =git init=, we'll need to
+register a subparser with the name "init", and create a ~cmd_init(args)~
+function.  That's it!
+
+Just to make sure everything works fine, let's create a "hello"
+subcommand, that would just display a single line:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argsubparsers.add_parser("hello", help="Say hello.")
+
+  def cmd_hello(args):
+      print("Hello Git, I'm Wyag!")
+#+END_SRC
+
+Now you should be able to run =./wyag hello= from your terminal, and it
+should display the above string.
+
+** Test suite
+
+We also need a test suite.  Because we have a reference implementation
+(=git= itself), testing will be simple: we call =git= and =wyag= with the
+exact same arguments and check we get the exact same result.
+
+#+BEGIN_SRC shell :tangle wyag-tests
+  #!/usr/bin/env bash
+
+  LEFT=git
+  RIGHT=$(pwd)/wyag
+
+  LEFT_CWD=""
+  RIGHT_CWD=""
+
+  RUN=0
+
+  function test_setup() {
+      true;
+  }
+
+  function test_run() {
+
+      let RUN+=1
+
+      echo "Running test #$RUN: $@..."
+
+      LEFT_CWD=$(mktemp -d --tmpdir ${RUN}_LEFT.XXXX)
+      RIGHT_CWD=$(mktemp -d --tmpdir ${RUN}_RIGHT.XXXX)
+
+      test_setup
+
+      cd $LEFT_CWD
+      $LEFT $@ > /dev/null 2> /dev/null
+      LEFT_ERR=$?
+
+      cd $RIGHT_CWD
+      $RIGHT $@ > /dev/null 2> /dev/null
+      RIGHT_ERR=$?
+
+      DIFF=$(diff -arq $LEFT_CWD $RIGHT_CWD)
+      DIFF_ERR=$?
+
+      if [[ $LEFT_ERR != $RIGHT_ERR ]]; then
+         echo -e "#$RUN (test_run $@) FAILED"
+         echo -e "\tReturn codes don't match: ($LEFT_ERR != $RIGHT_ERR).";
+      fi
+  }
+
+  function test_done() {
+      rm -rf $LEFT_CWD
+      rm -rf $RIGHT_CWD
+  }
+
+  function assert_equivalent() {
+      # Run $@ on LEFT_CWD and RIGHT_CWD and check that error code and
+      # stdout are identical
+
+      cd $LEFT_CWD
+      LEFT_LOG=$($@)
+      LEFT_ERR=$?
+
+      cd $RIGHT_CWD
+      RIGHT_LOG=$($@)
+      RIGHT_ERR=$?
+
+      if [[ $LEFT_ERR != $RIGHT_ERR ]] || [[ $LEFT_LOG != $RIGHT_LOG ]]; then
+          echo -e "#$RUN FAILED @ assert_equivalent $@"
+          [[ $LEFT_ERR != $RIGHT_ERR ]] && echo -e "\tReturn codes don't match: ($LEFT_ERR != $RIGHT_ERR)."
+          [[ $LEFT_LOG != $RIGHT_LOG ]] && echo -e "\tStdouts differ."
+      fi
+  }
+
+  test_run init
+  assert_equivalent git status --porcelain=v2 --branch
+  test_done
+
+  test_run init test
+  assert_equivalent git -C test status --porcelain=v2 --branch
+  test_done
+#+END_SRC
+
+* Working with repositories
+
+The most obvious kind of thing Git manipulates is the repository.
+Every time we run a git command, we're trying to do something to a
+repository: create it, read from it or modify it.  It's the obvious
+first thing we then need to implement.  Let's keep things simple: a
+repository objects is a directory, with a =.git= directory inside, and a
+bunch of other paths.
+
+we're going to need a simple abstraction for a repository.  We won't
+take the object oriented road here for a reason: this tutorial is
+meant to be progressive, and it's much easier to add functions than to
+start over the definition of a class.  The idea here is that if you
+copy-and-paste code blocks from the top to any point, the result will
+run --- which would be impossible
+
+# @TODO Revoir la formulation.  L'idée, c'est que si on devait avoir
+# une classe entièrement définie, il faudrait soit la définir d'un
+# bloc, soit la réécrire régulièrement.  Dans les deux cas, ce serait
+# pénible à lire.
+
+#+BEGIN_SRC python :tangle libwyag.py
+  class Repository(object):
+      """A git repository"""
+
+      worktree = None
+      gitdir = None
+
+      def __init__(self, path, create=False):
+          self.worktree = path
+          self.gitdir = os.path.join(path, ".git")
+
+          if create:
+              self._create(path)
+
+          if not (os.path.exists(self.gitdir) and os.path.isdir(self.gitdir)):
+              raise Exception("Not a Git repository %s" % path)
+
+      def mkpath(self, *components):
+          return os.path.join(self.gitdir, *components)
+
+      def _create(self, path):
+          """Create a new repository at path."""
+
+          # First, we make sure the path either doesn't exist or is an
+          # empty dir.
+
+          if os.path.exists(path):
+              if not os.path.isdir(path):
+                  raise Exception ("%s is not a directory!" % path)
+              if os.listdir(path):
+                  raise Exception("%s is not empty!" % path)
+          else:
+              os.makedirs(path)
+
+          os.makedirs(self.mkpath("."))
+          os.mkdir(self.mkpath("branches"))
+          os.mkdir(self.mkpath("objects"))
+          os.mkdir(self.mkpath("objects/info"))
+          os.mkdir(self.mkpath("objects/pack"))
+          os.mkdir(self.mkpath("hooks"))
+          os.mkdir(self.mkpath("info"))
+          os.mkdir(self.mkpath("refs"))
+          os.mkdir(self.mkpath("refs/tags"))
+          os.mkdir(self.mkpath("refs/heads"))
+
+          # .git/description
+          with open(self.mkpath("description"), "w") as f:
+              f.write("Unnamed repository; edit this file 'description' to name the repository.\n")
+
+          # .git/HEAD
+          with open(self.mkpath("HEAD"), "w") as f:
+              f.write("ref: refs/heads/master\n")
+
+          with open(self.mkpath("config"), "w") as f:
+              config = configparser.ConfigParser()
+              config.add_section("core")
+              config.set("core", "\trepositoryformatversion", "0")
+              config.set("core", "\tfilemode", "true")
+              config.set("core", "\tbare", "false")
+              config.set("core", "\tlogallrefupdates", "true")
+
+              config.write(f)
+
+              return Repository(path)
+#+END_SRC
+
+A "serious" implementation would put much more features in the
+repository class, but the idea here is to keep things simple.  We'll
+write non-method functions that could have been methods of the
+repository class, and that's all right.  The idea here is that if you
+copy and paste each block of code, the result always runs.
+
+** Creating =wyag init=
+
+Now that we have code to read and create repositories, let's make this
+code usable from the command line by creating the =wyag init= command.
+=wyag init= behaves just like =git init= --- with much less customization
+choices, though.  The syntax of =wyag init= is going to be:
+
+#+BEGIN_EXAMPLE
+  wyag init [path]
+#+END_EXAMPLE
+
+To create the command, we're going to need two more things:
+
+1. We need to create an argparse subparser with our command
+   arguments.
+2. We'll then need a "bridge" function that will read argument values
+   from the namespace returned by argparse and call the actual
+   function with correct values.
+
+First, let's declare a subparser:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argsp = argsubparsers.add_parser("init", help="Initialize a new, empty repository.")
+  argsp.add_argument("path",
+                     metavar="directory",
+                     nargs="?",
+                     default=".",
+                     help="Where to create the repository.")
+#+END_SRC
+
+And a bridge function:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  def cmd_init(args):
+      Repository(args.path, True)
+#+END_SRC
+
+And we're done!  If you've followed these steps, you should not be
+able to =wayg init= a git repository anywhere.
+
+* Reading and writing objects
+
+Now that we have repositories, putting things inside them is in order.
+Also, repositories are boring, and writing a Git implementation
+shouldn't be just a matter of writing a bunch of =mkdir=.  So let's talk
+about *objects*!
+
+At its core, Git is a "content-addressed filesystem".  What does it
+mean?  It means that unlike regular filesystems, where the name of a
+file is conventional and arbitrary, the names of objects in Git are
+mathematically derived from their contents.  This means that if a
+single byte of, say, a text file changes, its internal name will
+change, too.
+
+Internally, objects are addressed by their [[https://en.wikipedia.org/wiki/SHA-1][SHA-1]] [[https://en.wikipedia.org/wiki/Cryptographic_hash_function][hash]].
+
+Put shortly, a hash function is a kind of unidirectional mathematical
+function: it is easy to compute the hash of a value, but there's no
+way to compute which value produced a hash.  A very simple example of
+a hash function is the =strlen= function.  It's really easy to compute
+the length of a string, and the length of a given string will never
+change (unless the string itself changes, of course!) but it's
+impossible to retrieve the original string, given only its length.
+/Cryptographic/ hash functions are just a much more complex version of
+the same, with the added property that computing an input meant to
+produce a given hash is hard enough to be
+practically impossible.  (With =strlen=, producing an input =i= with
+~strlen(i) == 12~, you just have to type twelve random characters.  With
+algorithms such as SHA-1. it would take... quite some time.
+
+How does Git use this to address an object?  Basically, it renders the
+hash as an hexadecimal string, and breaks it in two parts: the first
+two characters, and the rest.  It uses the first part as a directory
+name, the rest as the file name (this is because most filesystems hate
+having too many files in a single directory and will slow down to a
+crawl.  Doing so divides by 256 the average number of files per directory)
+
+Let's try this with the following piece of data:
+
+#+BEGIN_EXAMPLE
+Hello, world!
+#+END_EXAMPLE
+
+(This is not a valid git object, but let's ignore this for now).
+The SHA-1 of this text is =09fac8dbfd27bd9b4d23a00eb648aa751789536d=.
+You can verify it for yourself using the =sha1sum= command.
+If this was stored as an object in a git repo, it would then reside in
+=.git/objects/09/fac8dbfd27bd9b4d23a00eb648aa751789536d=.
+
+So let's implement this!  Since Git objects are not actually random
+data, we'll just write a generic class handling loading and storing
+objects from a repository.
+
+First, we need a generic object class.  We use OOP here because we
+actually need some genericity: there are multiple types of objects
+using the same storage system:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  class GitObject (abc.ABC):
+      """ A generic Git object. """
+
+      repo = None
+      id = None
+
+      def __init__(repo, id=None, data=None):
+          self.repo=repo
+          self.id=id
+
+          if data:
+              self.deserialize(data)
+
+      @abc.abstractmethod
+      def deserialize(self):
+          pass
+
+      @abc.abstractmethod
+      def serialize(self):
+          pass
+#+END_SRC
+
+Reading a Git object is then a matter of computing its path,
+reading and decompressing its contents, reading its type flag and
+initializing the correct
+
+#+BEGIN_SRC python :tangle libwyag.py
+  class GitBlob(GitObject): pass
+  class GitCommit(GitObject): pass
+  class GitTag(GitObject): pass
+  class GitTree(GitObject): pass
+
+  def read_object(repo, hash):
+      """Read object hash from git repository repo.  This returns a GitObject
+      whose exact type depends on the object."""
+      path = repo.mkpath("objects", hash[0:2], hash[2:])
+
+      with open (path, "rb") as f:
+          raw = zlib.decompress(f.read())
+
+          # Read object type
+          x = raw.find(b' ')
+          fmt = raw[0:x]
+
+          # Pick matching constructor
+          try:
+              constructor = {
+                  b'commit' : GitCommit,
+                  b'tree'   : GitTree,
+                  b'tag'    : GitTag,
+                  b'blob'   : GitBlob
+              }[fmt]
+          except KeyError:
+              raise Exception("Unknown type %s for object %s" % (fmt.decode("ascii"), hash))
+
+          y = raw.find(b'\x00', x)
+          size = int(raw[x:y].decode("ascii"))
+          if size != len(raw)-y-1:
+              raise Exception("Malformed object %s: bad length" % hash)
+
+          constructor(repo, hash, raw[y:])
+#+END_SRC
+
+* Actual Git objects
+
+Our =GitObject= class right now is too abstract to be any useful.  We're
+going to need to write more code to give meaning to these objects.
+
+Git knows of exactly four object types: blobs, commits, tags and
+trees.  Once you've understood these four, you've understood
+git --- Hurrah!  We'll follow some kind of dependency order here,
+which means that we won't start with commits, but with... blobs!
+
+ - Blobs! :: A blob is, well, anything.  Really anything.  "Blob"
+             sometimes stand for "Binary Large OBject", but I really
+             doubt that's the case here, at least because blobs are
+             rarely binary.  A blob is the actual content stored in a
+             git repo, that is, it's a state of a file.  For example,
+             if you init a bare repo, create a file with "I HATE YOU",
+             addand commit this file, edit it, replace content with "I
+             LOVE YOU", add and commit it again, you've created two
+             blobs: one with "I HATE YOU", the other with "I HATE
+             YOU".  And that's virtually all there is to a blob.
+
+             But there's something critically important here: Git has
+             no real concept of a file /changing/.  From your point of
+             view, you've /modified/ a file.  This is true of this small
+             example, but it's even more true when we're discussing
+             code: if you fix a small bug, it's obvious you've just
+             /modified/ a file, not deleted it and replaced it with a
+             new one. But to Git, these are two distinct pieces of
+             contents.
+
+             Deltas, changesets and diffs are /not/ fundamental concepts
+             in Git, they come very late in the story.  This will
+             hopefully become more clear when we'll begin discussing
+             commits.
+
+ - Trees! :: Remember what we've said earlier about objects: they have
+             no real path, like =main.c= or =README.md=.  Their path is
+             just a bunch of hex digits computed from their content.
+             In git, a tree object associates blobs with filesystem
+             locations, that is, gives actual paths to blobs.
+             Informally, a tree looks like this:
+
+             | Blob                                     | Path       |
+             |------------------------------------------+------------|
+             | =09fac8dbfd27bd9b4d23a00eb648aa751789536d= | =README.md=  |
+             | =0e955b66534676c5311cae5168c617b8c22576a0= | =src/main.c= |
+             | =0d19d9c4600bf769a2a4dfd4b7e38e7c53fb4fb4= | =src/lib.c=  |
+             | =7bd3d3db0a6dcf06144ef05e76cca36f8a2b9afd= | =src/lib.h=  |
+
+             Trees look suspiciously like commits, don't they?  A
+             bunch of data with a bunch of paths?  Well, that's
+             because they're /almost/ commits.
+
+ - Commits! :: Now for everyone's favorite, the commit.  Actually, a
+               commit is a boring object, except for one property: it
+               has a /parent/.  Or two, or several, actually.
+
+** The tree
+
+
+
+** The commit
+
+#+BEGIN_SRC python :tangle libwyag.py
+  class GitTree(GitObject):
+      leaves = None
+
+      class Leaf(object):
+          mode = None
+          blob = None
+          path = None
+
+      def serialize(self):
+          pass
+#+END_SRC
+
+** Implementing the hash-object command
+
+=git hash=
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argsp = argsubparsers.add_parser(
+      "hash-object",
+      aliases=["ho"],
+      help="Compute object ID and optionally creates a blob from a file")
+
+  argsp.add_argument("-t",
+                     metavar="type",
+                     dest="type",
+                     choices=["blob", "commit", "tag", "tree"],
+                     default="blob",
+                     help="Specify the type")
+
+  argsp.add_argument("-w",
+                     dest="write",
+                     action="store_true",
+                     help="Actually write the object into the database")
+
+  mutex0 = argsp.add_mutually_exclusive_group(required=True)
+
+  mutex0.add_argument("--stdin",
+                      action="store_true",
+                      required=False,
+                      help="Read from stdin instead of from a file")
+
+  mutex0.add_argument("path",
+                      nargs="?",
+                      help="Read object from <file>")
+#+END_SRC
+
+#+BEGIN_SRC python :tangle libwyag.py
+  def cmd_hash_object(args):
+      print(args)
+
+      with sys.stdin.buffer if args.stdin else open(args.path) as i:
+          obj = hash_object(args.type, i)
+
+      if args.write:
+          obj.write()
+
+  def hash_object(type, file):
+      print(file.read())
+#+END_SRC

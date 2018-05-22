@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+LEFT=git
+RIGHT=$(pwd)/wyag
+
+LEFT_CWD=""
+RIGHT_CWD=""
+
+RUN=0
+
+function test_setup() {
+    true;
+}
+
+function test_run() {
+
+    let RUN+=1
+
+    echo "Running test #$RUN: $@..."
+
+    LEFT_CWD=$(mktemp -d --tmpdir ${RUN}_LEFT.XXXX)
+    RIGHT_CWD=$(mktemp -d --tmpdir ${RUN}_RIGHT.XXXX)
+
+    test_setup
+
+    cd $LEFT_CWD
+    $LEFT $@ > /dev/null 2> /dev/null
+    LEFT_ERR=$?
+
+    cd $RIGHT_CWD
+    $RIGHT $@ > /dev/null 2> /dev/null
+    RIGHT_ERR=$?
+
+    DIFF=$(diff -arq $LEFT_CWD $RIGHT_CWD)
+    DIFF_ERR=$?
+
+    if [[ $LEFT_ERR != $RIGHT_ERR ]]; then
+       echo -e "#$RUN (test_run $@) FAILED"
+       echo -e "\tReturn codes don't match: ($LEFT_ERR != $RIGHT_ERR).";
+    fi
+}
+
+function test_done() {
+    rm -rf $LEFT_CWD
+    rm -rf $RIGHT_CWD
+}
+
+function assert_equivalent() {
+    # Run $@ on LEFT_CWD and RIGHT_CWD and check that error code and
+    # stdout are identical
+
+    cd $LEFT_CWD
+    LEFT_LOG=$($@)
+    LEFT_ERR=$?
+
+    cd $RIGHT_CWD
+    RIGHT_LOG=$($@)
+    RIGHT_ERR=$?
+
+    if [[ $LEFT_ERR != $RIGHT_ERR ]] || [[ $LEFT_LOG != $RIGHT_LOG ]]; then
+        echo -e "#$RUN FAILED @ assert_equivalent $@"
+        [[ $LEFT_ERR != $RIGHT_ERR ]] && echo -e "\tReturn codes don't match: ($LEFT_ERR != $RIGHT_ERR)."
+        [[ $LEFT_LOG != $RIGHT_LOG ]] && echo -e "\tStdouts differ."
+    fi
+}
+
+test_run init
+assert_equivalent git status --porcelain=v2 --branch
+test_done
+
+test_run init test
+assert_equivalent git -C test status --porcelain=v2 --branch
+test_done
