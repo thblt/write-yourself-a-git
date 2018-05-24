@@ -1,0 +1,3 @@
+[submodule "org-html-themes"]
+	path = org-html-themes
+	url = https://github.com/fniessen/org-html-themes

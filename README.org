@@ -1,4 +1,12 @@
 #+TITLE: Write yourself a Git!
+#+AUTHOR: [[mailto:thibault@thb.lt][Thibault Polge]]
+
+#+LANGUAGE: en
+#+OPTIONS: ':t
+
+#+SETUPFILE: org-html-themes/setup/theme-readtheorg.setup
+
+
 
 # @TODO: Write introduction
 There's a /lot/ of articles out there that all share the same
