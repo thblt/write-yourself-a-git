@@ -30,7 +30,7 @@
   (let ((org-babel-inline-result-wrap "%s")
         (org-confirm-babel-evaluate nil)
         (org-export-with-broken-links t))
-    ;; FIXME set this to nil when releasing!
+        ;; FIXME set this to nil when releasing!
     (org-html-export-to-html)
     ;; publish only if I'm me
     (when (string= "thblt" (user-login-name))
@@ -2024,7 +2024,7 @@ following before you start working.
    'hline
    `("Creation date" ,(current-time-string))
    `("On commit" ,(format "=%s= (%s)"
-                       (car (magit-git-lines "describe" "--always"))
+                       (car (magit-git-lines "describe" "--tags" "--always"))
                        (if (zerop (length (magit-git-lines "status" "--porcelain=v2")))
                            "clean" "*dirty*")))
    `("By" ,(format "%s (=%s= on =%s=)"
@@ -2038,8 +2038,8 @@ following before you start working.
 #+RESULTS:
 | Key              | Value                              |
 |------------------+------------------------------------|
-| Creation date    | Fri May 25 13:33:30 2018           |
-| On commit        | =6071c08= (*dirty*)                    |
+| Creation date    | Mon May 28 11:25:28 2018           |
+| On commit        | =0.1.1= (clean)                      |
 | By               | Thibault Polge (=thblt= on =maladict=) |
 | Emacs version    | 26.1                               |
 | Org-mode version | 9.1.13                             |
