@@ -1992,9 +1992,9 @@ feedback, you may use:
 
 - IRC :: I'm thblt on Freenode, feel free to message me!
 
-- Reddit :: I also follow informal discussions on Reddit.  This
-            article was shared on the Git and Python subreddits:
-            [[https://reddit.com][/r/git discussion thread]], [[https://reddit.com][/r/python discussion thread]].
+# - Reddit :: I also follow informal discussions on Reddit.  This
+#             article was shared on the Git and Python subreddits:
+#             [[https://reddit.com][/r/git discussion thread]], [[https://reddit.com][/r/python discussion thread]].
             # @TODO Update with the actual Reddit link.
 
 ** Contributing
@@ -2003,7 +2003,7 @@ feedback, you may use:
 :END:
 
 If you want to contribute changes or improvements to this article or
-the wyag program, libreary and/or test suite, please read the
+the wyag program, library and/or test suite, please read the
 following before you start working.
 
  - Do /not/ make changes to =wyag= or =libwyag.py=.  These files
