@@ -568,7 +568,7 @@ command, we're only going to need two more things:
         repo_create(args.path)
     #+END_SRC
 
-And we're done!  If you've followed these steps, you should not be
+And we're done!  If you've followed these steps, you should now be
 able to =wayg init= a git repository anywhere.
 
 ** The repo_find() function
