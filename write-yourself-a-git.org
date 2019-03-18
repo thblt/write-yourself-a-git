@@ -499,12 +499,13 @@ def repo_create(path):
 #+END_SRC
 
 The configuration file is very simple, it's a INI-like file with a
-section (=[core]=) and three fields:
+single section (=[core]=) and three fields:
 
  - =repositoryformatversion = 0=: the version of
    the gitdir format.  0 means the initial format, 1 the same with
    extensions.  If > 1, git will panic; wyag will only accept 0.
- - =filemode = true=: disable tracking of file mode changes in the work tree.
+ - =filemode = false=: disable tracking of file mode changes in the work tree.
+# TODO Explain what «file modes» are
  - =bare = false=: indicates that this repository has a worktree.  Git
    supports an optional =worktree= key which indicates the location of
    the worktree, if not =..=; wyag doesn't.
