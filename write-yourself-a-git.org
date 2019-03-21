@@ -353,7 +353,7 @@ repository, to create it, read from it or modify it.
 
 A repository, in git, is made of two things: a "work tree", where the
 files meant to be in version control live, and a "git directory",
-where Git stores its own data.  In most cases, the worktree in a
+where Git stores its own data.  In most cases, the worktree is a
 regular directory and the git directory is a child directory of the
 worktree, called =.git=.
 
@@ -402,7 +402,7 @@ class GitRepository(object):
 
         if not force:
             vers = int(self.conf.get("core", "repositoryformatversion"))
-            if vers != 0 and not force:
+            if vers != 0:
                 raise Exception("Unsupported repositoryformatversion %s" % vers)
 #+END_SRC
 
@@ -569,7 +569,7 @@ command, we're only going to need two more things:
         repo_create(args.path)
     #+END_SRC
 
-And we're done!  If you've followed these steps, you should not be
+And we're done!  If you've followed these steps, you should now be
 able to =wayg init= a git repository anywhere.
 
 ** The repo_find() function
