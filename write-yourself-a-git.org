@@ -1703,6 +1703,35 @@ on whether or not =name= is provided.
           show_ref(repo, refs["tags"], with_hash=False)
 #+END_SRC
 
+[draft for the tag_create function]
+
+#+begin_src python :tangle libwyag.py
+
+  def tag_create(repo: GitRepository, name, reference, create_tag_object):
+      # get the GitObject from the object reference
+      sha = object_find(repo, reference)
+
+      if create_tag_object:
+          # create tag object (commit)
+          tag = GitTag(repo)
+          tag.kvlm = collections.OrderedDict()
+          tag.kvlm[b'object'] = sha.encode()
+          tag.kvlm[b'type'] = b'commit'
+          tag.kvlm[b'tag'] = name.encode()
+          tag.kvlm[b'tagger'] = b'The soul eater <grim@reaper.net>'
+          tag.kvlm[b''] = b'This is the commit message that should have come from the user\n'
+          tag_sha = object_write(tag, repo)
+          # create reference
+          ref_create(repo, "tags/" + name, tag_sha)
+      else:
+          # create lightweight tag (ref)
+          ref_create(repo, "tags/" + name, sha)
+
+  def ref_create(repo, ref_name, sha):
+      with open(repo_file(repo, "refs/" + ref_name), 'w') as fp:
+          fp.write(sha + "\n")
+#+end_src
+
 ** What's a branch?
 
 It's time to address the elephant in the room: like most Git users,
