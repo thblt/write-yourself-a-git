@@ -683,8 +683,8 @@ enough to be practically impossible[fn:1].
 #+END_note
 
 Before we start implementing the object storage system, we must
-understand their exact storage format.  A object start by an header
-that specify its type: =blob=, =commit=, =tag= or =tree=.  This header is
+understand their exact storage format.  An object starts with a header
+that specifies its type: =blob=, =commit=, =tag= or =tree=.  This header is
 followed by an ASCII space (0x20), then the size of the object in bytes as an
 ASCII number, then null (0x00) (the null byte), then the contents of the
 object.  The first 48 bytes of a commit object in Wyag's repo look like this:
@@ -943,7 +943,7 @@ bridge function:
           print(sha)
 #+END_SRC
 
-and the actual implementation.  The repo argument is optional:/
+and the actual implementation.  The repo argument is optional:
 
 #+BEGIN_SRC python :tangle libwyag.py
 def object_hash(fd, fmt, repo=None):
@@ -972,7 +972,7 @@ more efficient, but also much more complex, than loose objects.  And
 aren't worth implementing in =wyag=.  Simply put, a packfile is a
 compilation of loose objects (like a =tar=) but some are stored as
 deltas (as a transformation of another object).  Packfiles are way too
-complex to be supported by wyag
+complex to be supported by wyag.
 
 The packfile is stored in =.git/objects/pack/=.  It has a =.pack=
 extension, and is accompanied by an index file of the same name with
@@ -1231,7 +1231,7 @@ runs backwards: we're used to considering the history of a project
 from its humble beginnings as an evening distraction, starting with a
 few lines of code, some initial commits, and progressing to its
 present state (millions of lines of code, dozens of contributors,
-whatever).  But each commit is completely unrelated of its future,
+whatever).  But each commit is completely unaware of its future,
 it's only linked to the past.  Commits have "memory", but no
 premonition.
 
@@ -1258,7 +1258,7 @@ All this hashed together in a SHA-1 identifier.
 #+begin_note
 *Wait, does that make Git a blockchain?*
 
-Because of cryptocurrencies, blochains are all the hype these days.
+Because of cryptocurrencies, blockchains are all the hype these days.
 And yes, /in a way/, Git is a blockchain: it's a sequence of blocks
 (commits) tied together by cryptographic means in a way that guarantee
 that each single element is associated to the whole history of the
@@ -1312,7 +1312,7 @@ the shortcut of putting a full path in a single tree entry, like
 ** Parsing trees
 
 Unlike tags and commits, tree objects are binary objects, but their
-format is actually quite.  A tree is the concatenation of records of
+format is actually quite simple.  A tree is the concatenation of records of
 the format:
 
 #+begin_example
@@ -1325,10 +1325,10 @@ the format:
 
 - It's followed by 0x20, an ASCII space;
 
-- Followed by the null-terminated (0x00)path;
+- Followed by the null-terminated (0x00) path;
 
 - Followed by the object's SHA-1 in binary encoding, on 20 bytes.  Why
-  binary?  God only knowns.
+  binary?  God only knows.
 
 The parser is going to be quite simple.  First, create a tiny object
 wrapper for a single record (a leaf, a single path):
@@ -1445,7 +1445,7 @@ We're going to oversimplify the actual git command to make our implementation cl
 
 - It will take two arguments: a commit, and a directory.  Git checkout only needs a commit.
 
-- It will then instantiate the tree in the directory, *if and only if the directory is empty*.  Git is full of safeguards to avoid deleting data, which would be too complicated and unsafe to try to reproduce in wyay.  Since the point of wyag is to demonstrate git, not to produce a working implementation, this limitation is acceptable.
+- It will then instantiate the tree in the directory, *if and only if the directory is empty*.  Git is full of safeguards to avoid deleting data, which would be too complicated and unsafe to try to reproduce in wyag.  Since the point of wyag is to demonstrate git, not to produce a working implementation, this limitation is acceptable.
 
 Let's get started.  As usual, we need a subparser:
 
@@ -1503,8 +1503,8 @@ And a function to do the actual work:
 ** What's a ref?
 
 Git references, or refs, are probably the most simple type of things
-git hold.  They live in subdirectories of =.git/refs=, and are text
-files containing an hexadecimal representation of an object's hash,
+git holds.  They live in subdirectories of =.git/refs=, and are text
+files containing a hexadecimal representation of an object's hash,
 encoded in ASCII.  They're actually as simple as this:
 
 #+BEGIN_example
@@ -1605,7 +1605,7 @@ association explicit, all you have to do is:
 
 This creates a new tag, called =v12.78.52=, pointing at =6071c08=.
 Tagging is like aliasing: a tag introduces a new way to refer to an
-existing object.  After the tags is created, the name =v12.78.52= refers
+existing object.  After the tag is created, the name =v12.78.52= refers
 to =6071c08=.  For example, these two commands are now perfectly
 equivalent:
 
@@ -1633,7 +1633,7 @@ that they come in two flavors: lightweight tags and tags objects.
 - Tag objects :: are regular refs pointing to an object of type =tag=.
                  Unlike lightweight tags, tag objects have an author,
                  a date, an optional PGP signature and an optional
-                 annotation.  Their format is the same as commit
+                 annotation.  Their format is the same as a commit
                  object.
 
 We don't even need to implement tag objects, we can reuse =GitCommit=
@@ -1915,7 +1915,7 @@ could do it like this, but Git chooses a much more complicated road:
 the staging area, implemented in the form of the index file.
 
 You certainly know that to commit in Git, you first "stage" some
-changes, using =git add= and =git rm=, /then/ commit.  it would seem logical
+changes, using =git add= and =git rm=, /then/ commit.  It would seem logical
 to use a commit-like object to represent the staging area, but Git
 goes a completely different way, and uses a completely different
 mechanism, in the form of the index file.  The index file represents a
@@ -2014,7 +2014,7 @@ following before you start working.
    update them.
 
  - The source file for /both/ the article and the program is
-   =write-yourself-a-git.org=.  It's format may seem unusual, but it's
+   =write-yourself-a-git.org=.  Its format may seem unusual, but it's
    pretty simple and not that far from markdown.
 
 ** Release information
