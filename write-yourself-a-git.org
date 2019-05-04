@@ -1970,6 +1970,53 @@ holds quite a lot of stuff:
       name = None
 #+END_SRC
 
+* Running the executable
+
+Remember when we ran this command?
+
+#+BEGIN_EXAMPLE
+  $ chmod +x wyag
+#+END_EXAMPLE
+
+We will now build the project so you can run it from anywhere just like Git.
+
+First create a setup.py file.
+
+We will use a library called setuptools.
+
+#+BEGIN_SRC python :tangle libwyag.py
+import setuptools
+
+setuptools.setup(
+    name='wyag',
+    version='1.0',
+    author='Thibault Polge',
+    author_email='thibault@thb.lt',
+    description='Write Yourself a Git!',
+    packages=setuptools.find_packages(),
+    scripts=['wyag'],
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+    ],
+)
+#+END_SRC
+
+You can now build the project:
+
+#+BEGIN_EXAMPLE
+   $ sudo python3 setup.py install
+#+END_EXAMPLE
+
+And use wyag globally (from any path) like this:
+
+#+BEGIN_EXAMPLE
+   $ wyag --help
+#+END_EXAMPLE
+
+Note: If you have structured your code in folders then remember to include an empty __init__.py in every folder.
+
 * Final words
 
 ** Comments, feedback and issues
