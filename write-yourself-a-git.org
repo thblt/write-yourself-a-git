@@ -1873,7 +1873,7 @@ steps, since tags themselves can be tagged)
 
 *** The rev-parse command
 
-The =git rev-parse= commands does a lot, but one if its use case is
+The =git rev-parse= commands does a lot, but one of its use cases is
 solving revision (commits) references.  For the purpose of testing the
 "follow" feature of =object_find=, we'll add an optional =wyag-type=
 arguments to its interface.
