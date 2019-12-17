@@ -238,7 +238,7 @@ def object_read(repo, sha):
         elif fmt==b'tag'    : c=GitTag
         elif fmt==b'blob'   : c=GitBlob
         else:
-            raise Exception("Unknown type %s for object %s".format(fmt.decode("ascii"), sha))
+            raise Exception("Unknown type {0} for object {1}".format(fmt.decode("ascii"), sha))
 
         # Call constructor and return object
         return c(repo, raw[y+1:])
