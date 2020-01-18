@@ -1794,8 +1794,8 @@ referred to as =5bd254=.  This is called a "short hash".
    - branches
    - remote branches"""
       candidates = list()
-      hashRE = re.compile(r"^[0-9A-Fa-f]{1,16}$")
-      smallHashRE = re.compile(r"^[0-9A-Fa-f]{1,16}$")
+      hashRE = re.compile(r"^[0-9A-Fa-f]{40}$")
+      smallHashRE = re.compile(r"^[0-9A-Fa-f]{4,20}$")
 
       # Empty string?  Abort.
       if not name.strip():
@@ -1810,18 +1810,18 @@ referred to as =5bd254=.  This is called a "short hash".
           if len(name) == 40:
               # This is a complete hash
               return [ name.lower() ]
-          elif len(name) >= 4:
+      elif smallHashRE.match(name):
               # This is a small hash 4 seems to be the minimal length
               # for git to consider something a short hash.
               # This limit is documented in man git-rev-parse
-              name = name.lower()
-              prefix = name[0:2]
-              path = repo_dir(repo, "objects", prefix, mkdir=False)
-              if path:
-                  rem = name[2:]
-                  for f in os.listdir(path):
-                      if f.startswith(rem):
-                          candidates.append(prefix + f)
+          name = name.lower()
+          prefix = name[0:2]
+          path = repo_dir(repo, "objects", prefix, mkdir=False)
+          if path:
+              rem = name[2:]
+              for f in os.listdir(path):
+                  if f.startswith(rem):
+                      candidates.append(prefix + f)
 
       return candidates
 #+END_SRC
@@ -1969,6 +1969,53 @@ holds quite a lot of stuff:
 
       name = None
 #+END_SRC
+
+* Running the executable
+
+Remember when we ran this command?
+
+#+BEGIN_EXAMPLE
+  $ chmod +x wyag
+#+END_EXAMPLE
+
+We will now build the project so you can run it from anywhere just like Git.
+
+First create a setup.py file.
+
+We will use a library called setuptools.
+
+#+BEGIN_SRC python :tangle libwyag.py
+import setuptools
+
+setuptools.setup(
+    name='wyag',
+    version='1.0',
+    author='Thibault Polge',
+    author_email='thibault@thb.lt',
+    description='Write Yourself a Git!',
+    packages=setuptools.find_packages(),
+    scripts=['wyag'],
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+    ],
+)
+#+END_SRC
+
+You can now build the project:
+
+#+BEGIN_EXAMPLE
+   $ sudo python3 setup.py install
+#+END_EXAMPLE
+
+And use wyag globally (from any path) like this:
+
+#+BEGIN_EXAMPLE
+   $ wyag --help
+#+END_EXAMPLE
+
+Note: If you have structured your code in folders then remember to include an empty __init__.py in every folder.
 
 * Final words
 
