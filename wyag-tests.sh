@@ -51,6 +51,14 @@ git cat-file blob b17d > ../file2
 cd ..
 cmp file1 file2
 
+step cat-file with long hash
+cd left
+$wyag cat-file blob b17df541639ec7814a9ad274e177d9f8da1eb951 > ../file1
+cd ../right
+git cat-file blob b17df541639ec7814a9ad274e177d9f8da1eb951 > ../file2
+cd ..
+cmp file1 file2
+
 step "Create commit (git only, nothing is tested)" #@FIXME Add wyag commit
 cd left
 echo "Aleph" > hebraic-letter.txt

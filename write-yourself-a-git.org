@@ -1794,8 +1794,7 @@ referred to as =5bd254=.  This is called a "short hash".
    - branches
    - remote branches"""
       candidates = list()
-      hashRE = re.compile(r"^[0-9A-Fa-f]{1,16}$")
-      smallHashRE = re.compile(r"^[0-9A-Fa-f]{1,16}$")
+      hashRE = re.compile(r"^[0-9A-Fa-f]{4,40}$")
 
       # Empty string?  Abort.
       if not name.strip():
@@ -1810,18 +1809,18 @@ referred to as =5bd254=.  This is called a "short hash".
           if len(name) == 40:
               # This is a complete hash
               return [ name.lower() ]
-          elif len(name) >= 4:
-              # This is a small hash 4 seems to be the minimal length
-              # for git to consider something a short hash.
-              # This limit is documented in man git-rev-parse
-              name = name.lower()
-              prefix = name[0:2]
-              path = repo_dir(repo, "objects", prefix, mkdir=False)
-              if path:
-                  rem = name[2:]
-                  for f in os.listdir(path):
-                      if f.startswith(rem):
-                          candidates.append(prefix + f)
+
+          # This is a small hash 4 seems to be the minimal length
+          # for git to consider something a short hash.
+          # This limit is documented in man git-rev-parse
+          name = name.lower()
+          prefix = name[0:2]
+          path = repo_dir(repo, "objects", prefix, mkdir=False)
+          if path:
+              rem = name[2:]
+              for f in os.listdir(path):
+                  if f.startswith(rem):
+                      candidates.append(prefix + f)
 
       return candidates
 #+END_SRC
