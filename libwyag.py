@@ -84,7 +84,7 @@ class GitRepository(object):
 
         if not force:
             vers = int(self.conf.get("core", "repositoryformatversion"))
-            if vers != 0 and not force:
+            if vers != 0:
                 raise Exception("Unsupported repositoryformatversion %s" % vers)
 
 def repo_path(repo, *path):
