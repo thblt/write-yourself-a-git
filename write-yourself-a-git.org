@@ -1639,7 +1639,7 @@ that they come in two flavors: lightweight tags and tags objects.
 We don't even need to implement tag objects, we can reuse =GitCommit=
 and just change the =fmt= field:
 
-#+BEGIN_SRC python tangle libwyag.py
+#+BEGIN_SRC python :tangle libwyag.py
 class GitTag(GitCommit):
     fmt = b'tag'
 #+END_SRC
