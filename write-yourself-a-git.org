@@ -377,33 +377,33 @@ a =Repository= object to /create/ the repo.  So we need a way to create
 repository even from (still) invalid filesystem locations.
 
 #+BEGIN_SRC python :tangle libwyag.py
-class GitRepository(object):
-    """A git repository"""
+  class GitRepository(object):
+      """A git repository"""
 
-    worktree = None
-    gitdir = None
-    conf = None
+      worktree = None
+      gitdir = None
+      conf = None
 
-    def __init__(self, path, force=False):
-        self.worktree = path
-        self.gitdir = os.path.join(path, ".git")
+      def __init__(self, path, force=False):
+          self.worktree = path
+          self.gitdir = os.path.join(path, ".git")
 
-        if not (force or os.path.isdir(self.gitdir)):
-            raise Exception("Not a Git repository %s" % path)
+          if not (force or os.path.isdir(self.gitdir)):
+              raise Exception("Not a Git repository %s" % path)
 
-        # Read configuration file in .git/config
-        self.conf = configparser.ConfigParser()
-        cf = repo_file(self, "config")
+          # Read configuration file in .git/config
+          self.conf = configparser.ConfigParser()
+          cf = repo_file(self, "config")
 
-        if cf and os.path.exists(cf):
-                self.conf.read([cf])
-        elif not force:
-            raise Exception("Configuration file missing")
+          if cf and os.path.exists(cf):
+              self.conf.read([cf])
+          elif not force:
+              raise Exception("Configuration file missing")
 
-        if not force:
-            vers = int(self.conf.get("core", "repositoryformatversion"))
-            if vers != 0:
-                raise Exception("Unsupported repositoryformatversion %s" % vers)
+          if not force:
+              vers = int(self.conf.get("core", "repositoryformatversion"))
+              if vers != 0:
+                  raise Exception("Unsupported repositoryformatversion %s" % vers)
 #+END_SRC
 
 We're going to be manipulating *lots* of paths in repositories.  We may

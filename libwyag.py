@@ -78,7 +78,7 @@ class GitRepository(object):
         cf = repo_file(self, "config")
 
         if cf and os.path.exists(cf):
-                self.conf.read([cf])
+            self.conf.read([cf])
         elif not force:
             raise Exception("Configuration file missing")
 
