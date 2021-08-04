@@ -63,14 +63,22 @@ step "Create commit (git only, nothing is tested)" #@FIXME Add wyag commit
 cd left
 echo "Aleph" > hebraic-letter.txt
 git add hebraic-letter.txt
-GIT_AUTHOR_DATE="2010-01-01 01:02:03" \
-               GIT_COMMITTER_DATE="2010-01-01 01:02:03" \
+GIT_AUTHOR_DATE="2010-01-01 01:02:03 +0100" \
+               GIT_AUTHOR_NAME="Thibault Polge" \
+               GIT_AUTHOR_EMAIL="thibault@thb.lt" \
+               GIT_COMMITTER_DATE="2010-01-01 01:02:03 +0100" \
+               GIT_COMMITTER_NAME="Thibault Polge" \
+               GIT_COMMITTER_EMAIL="thibault@thb.lt" \
                git commit --no-gpg-sign -m "Initial commit" > /dev/null
 cd ../right
 echo "Aleph" > hebraic-letter.txt
 git add hebraic-letter.txt
-GIT_AUTHOR_DATE="2010-01-01 01:02:03" \
-               GIT_COMMITTER_DATE="2010-01-01 01:02:03" \
+GIT_AUTHOR_DATE="2010-01-01 01:02:03 +0100" \
+               GIT_AUTHOR_NAME="Thibault Polge" \
+               GIT_AUTHOR_EMAIL="thibault@thb.lt" \
+               GIT_COMMITTER_DATE="2010-01-01 01:02:03 +0100" \
+               GIT_COMMITTER_NAME="Thibault Polge" \
+               GIT_COMMITTER_EMAIL="thibault@thb.lt" \
                git commit --no-gpg-sign -m "Initial commit" > /dev/null
 
 cd ..
@@ -98,8 +106,12 @@ echo "Alpha" > a/greek_letters
 mkdir b
 echo "Hamza" > a/arabic_letters
 git add a/*
-GIT_AUTHOR_DATE="2010-01-01 01:02:03" \
-               GIT_COMMITTER_DATE="2010-01-01 01:02:03" \
+GIT_AUTHOR_DATE="2010-01-01 01:02:03 +0100" \
+               GIT_AUTHOR_NAME="Thibault Polge" \
+               GIT_AUTHOR_EMAIL="thibault@thb.lt" \
+               GIT_COMMITTER_DATE="2010-01-01 01:02:03 +0100" \
+               GIT_COMMITTER_NAME="Thibault Polge" \
+               GIT_COMMITTER_EMAIL="thibault@thb.lt" \
                git commit --no-gpg-sign -m "Commit 2" > /dev/null
 cd ../right
 mkdir a
@@ -107,8 +119,12 @@ echo "Alpha" > a/greek_letters
 mkdir b
 echo "Hamza" > a/arabic_letters
 git add a/*
-GIT_AUTHOR_DATE="2010-01-01 01:02:03" \
-               GIT_COMMITTER_DATE="2010-01-01 01:02:03" \
+GIT_AUTHOR_DATE="2010-01-01 01:02:03 +0100" \
+               GIT_AUTHOR_NAME="Thibault Polge" \
+               GIT_AUTHOR_EMAIL="thibault@thb.lt" \
+               GIT_COMMITTER_DATE="2010-01-01 01:02:03 +0100" \
+               GIT_COMMITTER_NAME="Thibault Polge" \
+               GIT_COMMITTER_EMAIL="thibault@thb.lt" \
                git commit --no-gpg-sign -m "Commit 2" > /dev/null
 cd ..
 
