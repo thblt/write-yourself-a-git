@@ -64,21 +64,21 @@ cd left
 echo "Aleph" > hebraic-letter.txt
 git add hebraic-letter.txt
 GIT_AUTHOR_DATE="2010-01-01 01:02:03 +0100" \
-               GIT_AUTHOR_NAME="Thibault Polge" \
-               GIT_AUTHOR_EMAIL="thibault@thb.lt" \
+               GIT_AUTHOR_NAME="wyag-tests.sh" \
+               GIT_AUTHOR_EMAIL="wyag@example.com" \
                GIT_COMMITTER_DATE="2010-01-01 01:02:03 +0100" \
-               GIT_COMMITTER_NAME="Thibault Polge" \
-               GIT_COMMITTER_EMAIL="thibault@thb.lt" \
+               GIT_COMMITTER_NAME="wyag-tests.sh" \
+               GIT_COMMITTER_EMAIL="wyag@example.com" \
                git commit --no-gpg-sign -m "Initial commit" > /dev/null
 cd ../right
 echo "Aleph" > hebraic-letter.txt
 git add hebraic-letter.txt
 GIT_AUTHOR_DATE="2010-01-01 01:02:03 +0100" \
-               GIT_AUTHOR_NAME="Thibault Polge" \
-               GIT_AUTHOR_EMAIL="thibault@thb.lt" \
+               GIT_AUTHOR_NAME="wyag-tests.sh" \
+               GIT_AUTHOR_EMAIL="wyag@example.com" \
                GIT_COMMITTER_DATE="2010-01-01 01:02:03 +0100" \
-               GIT_COMMITTER_NAME="Thibault Polge" \
-               GIT_COMMITTER_EMAIL="thibault@thb.lt" \
+               GIT_COMMITTER_NAME="wyag-tests.sh" \
+               GIT_COMMITTER_EMAIL="wyag@example.com" \
                git commit --no-gpg-sign -m "Initial commit" > /dev/null
 
 cd ..
@@ -107,11 +107,11 @@ mkdir b
 echo "Hamza" > a/arabic_letters
 git add a/*
 GIT_AUTHOR_DATE="2010-01-01 01:02:03 +0100" \
-               GIT_AUTHOR_NAME="Thibault Polge" \
-               GIT_AUTHOR_EMAIL="thibault@thb.lt" \
+               GIT_AUTHOR_NAME="wyag-tests.sh" \
+               GIT_AUTHOR_EMAIL="wyag@example.com" \
                GIT_COMMITTER_DATE="2010-01-01 01:02:03 +0100" \
-               GIT_COMMITTER_NAME="Thibault Polge" \
-               GIT_COMMITTER_EMAIL="thibault@thb.lt" \
+               GIT_COMMITTER_NAME="wyag-tests.sh" \
+               GIT_COMMITTER_EMAIL="wyag@example.com" \
                git commit --no-gpg-sign -m "Commit 2" > /dev/null
 cd ../right
 mkdir a
@@ -120,11 +120,11 @@ mkdir b
 echo "Hamza" > a/arabic_letters
 git add a/*
 GIT_AUTHOR_DATE="2010-01-01 01:02:03 +0100" \
-               GIT_AUTHOR_NAME="Thibault Polge" \
-               GIT_AUTHOR_EMAIL="thibault@thb.lt" \
+               GIT_AUTHOR_NAME="wyag-tests.sh" \
+               GIT_AUTHOR_EMAIL="wyag@example.com" \
                GIT_COMMITTER_DATE="2010-01-01 01:02:03 +0100" \
-               GIT_COMMITTER_NAME="Thibault Polge" \
-               GIT_COMMITTER_EMAIL="thibault@thb.lt" \
+               GIT_COMMITTER_NAME="wyag-tests.sh" \
+               GIT_COMMITTER_EMAIL="wyag@example.com" \
                git commit --no-gpg-sign -m "Commit 2" > /dev/null
 cd ..
 
