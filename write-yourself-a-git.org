@@ -570,7 +570,7 @@ command, we're only going to need two more things:
     #+END_SRC
 
 And we're done!  If you've followed these steps, you should now be
-able to =wayg init= a git repository anywhere.
+able to =wyag init= a git repository anywhere.
 
 ** The repo_find() function
 
