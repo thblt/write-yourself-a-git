@@ -1806,7 +1806,6 @@ referred to as =5bd254=.  This is called a "short hash".
       if name == "HEAD":
           return [ ref_resolve(repo, "HEAD") ]
 
-
       if hashRE.match(name):
           if len(name) == 40:
               # This is a complete hash
@@ -1899,6 +1898,8 @@ arguments to its interface.
   def cmd_rev_parse(args):
       if args.type:
           fmt = args.type.encode()
+      else:
+          fmt = None
 
       repo = repo_find()
 

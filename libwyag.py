@@ -656,7 +656,6 @@ This function is aware of:
     if name == "HEAD":
         return [ ref_resolve(repo, "HEAD") ]
 
-
     if hashRE.match(name):
         if len(name) == 40:
             # This is a complete hash
@@ -724,6 +723,8 @@ argsp.add_argument("name",
 def cmd_rev_parse(args):
     if args.type:
         fmt = args.type.encode()
+    else:
+        fmt = None
 
     repo = repo_find()
 
