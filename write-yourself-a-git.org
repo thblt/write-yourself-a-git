@@ -1900,7 +1900,7 @@ arguments to its interface.
 
       repo = repo_find()
 
-      print (object_find(repo, args.name, args.type, follow=True))
+      print (object_find(repo, args.name, fmt, follow=True))
 #+END_SRC
 
 

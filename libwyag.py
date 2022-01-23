@@ -727,7 +727,7 @@ def cmd_rev_parse(args):
 
     repo = repo_find()
 
-    print (object_find(repo, args.name, args.type, follow=True))
+    print (object_find(repo, args.name, fmt, follow=True))
 
 class GitIndexEntry(object):
     ctime = None
