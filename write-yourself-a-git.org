@@ -154,8 +154,10 @@ some basic Git (obviously), some basic Python, some basic shell.
   =wyag= should run on any Unix-like system with a Python interpreter,
   but I have absolutely no idea how it will behave on Windows.  The
   test suite absolutely requires a bash-compatible shell, which I
-  assume the WSL can provide.  Feedback from Windows users would be
-  appreciated!
+  assume the WSL can provide.  Also, if you are using WSL, make sure
+  your `wyag` file uses Unix-style line endings ([[https://stackoverflow.com/questions/48692741/how-can-i-make-all-line-endings-eols-in-all-files-in-visual-studio-code-unix][See this
+  StackOverflow solution if you use VS Code]]).  Feedback from Windows
+  users would be appreciated!
 #+END_warning
 
 * Getting started
