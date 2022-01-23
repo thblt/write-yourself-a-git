@@ -1,5 +1,5 @@
 # This file is part of wyag <https://wyag.thb.lt>
-# Copyright (c) 2018 Thibault Polge <thibault@thb.lt>
+# Copyright (c) 2018-2022 Thibault Polge <thibault@thb.lt>
 # All rights reserved
 #
 # Wyag is free software: you can redistribute it and/or modify it
