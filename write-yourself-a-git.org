@@ -533,8 +533,8 @@ def repo_default_config():
 
 Now that we have code to read and create repositories, let's make this
 code usable from the command line by creating the =wyag init= command.
-=wyag init= behaves just like =git init= --- with much less possible
-customization, of course.  The syntax of =wyag init= is going to be:
+=wyag init= behaves just like =git init= --- with much less
+customizability, of course.  The syntax of =wyag init= is going to be:
 
 #+BEGIN_EXAMPLE
   wyag init [path]
@@ -970,11 +970,10 @@ def object_hash(fd, fmt, repo=None):
 
 What we've just implemented is called "loose objects".  Git has a
 second object storage mechanism called packfiles.  Packfiles are much
-more efficient, but also much more complex, than loose objects.  And
-aren't worth implementing in =wyag=.  Simply put, a packfile is a
-compilation of loose objects (like a =tar=) but some are stored as
-deltas (as a transformation of another object).  Packfiles are way too
-complex to be supported by wyag.
+more efficient, but also much more complex, than loose objects.  Simply
+put, a packfile is a compilation of loose objects (like a =tar=) but
+some are stored as deltas (as a transformation of another object).
+Packfiles are way too complex to be supported by wyag.
 
 The packfile is stored in =.git/objects/pack/=.  It has a =.pack=
 extension, and is accompanied by an index file of the same name with
@@ -982,8 +981,7 @@ the =.idx= extension.  Should you want to convert a packfile to loose
 objects format (to play with =wyag= on an existing repo, for example),
 here's the solution.
 
-First, /move/ the packfile outside the gitdir.  Copying it,
-you have to move it.
+First, /move/ the packfile outside the gitdir (just copying it won't work).
 
 #+BEGIN_SRC shell
   mv .git/objects/pack/pack-d9ef004d4ca729287f12aaaacf36fee39baa7c9d.pack .
