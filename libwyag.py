@@ -36,6 +36,8 @@ import sys
 
 import zlib
 
+import math
+
 argparser = argparse.ArgumentParser(description="The stupid content tracker")
 
 argsubparsers = argparser.add_subparsers(title="Commands", dest="command")
@@ -58,6 +60,7 @@ def main(argv=sys.argv[1:]):
     elif args.command == "rm"          : cmd_rm(args)
     elif args.command == "show-ref"    : cmd_show_ref(args)
     elif args.command == "tag"         : cmd_tag(args)
+    elif args.command == "ls-files"    : cmd_ls_files(args)
 
 class GitRepository(object):
     """A git repository"""
@@ -729,6 +732,57 @@ def cmd_rev_parse(args):
     repo = repo_find()
 
     print (object_find(repo, args.name, fmt, follow=True))
+
+
+argsp = argsubparsers.add_parser("ls-files",
+        help = "List all the stage files")
+
+
+def cmd_ls_files(args):
+    repo = repo_find()
+    GitIndex.from_binary(os.path.join(repo.gitdir, 'index'))
+
+
+class GitIndex(object):
+    signature = None
+    version = None
+    nindex = None
+    header = None
+    index_entry_list = []
+    ext = None
+    sha = None
+
+    @staticmethod
+    def from_binary(index_filepath):
+        raw = None
+        with open(index_filepath, 'rb') as f:
+            raw = f.read()
+
+        header = raw[:12]
+        signature = header[:4]
+        version = hex(int.from_bytes(header[4:8], "big"))
+        nindex = int.from_bytes(header[8:12], "big")
+        
+        content = raw[12:]
+        idx = 0
+        for i in range(0, nindex):
+            ctime = content[idx: idx+8]
+            mtime = content[idx+8: idx+16]
+            dev = content[idx+16: idx+20]
+            ino = content[idx+20: idx+24]
+            mode = content[idx+24: idx+28]
+            uid = content[idx+28: idx+32]
+            gid = content[idx+32: idx+36]
+            filesz = content[idx+36: idx+40]
+            sha1 = content[idx+40: idx+60]
+            flag = content[idx+60: idx+62]
+            null_idx = content.find(b'\x00', idx+62)
+            filepath = content[idx+62: null_idx]
+
+            idx = null_idx + 1
+            idx = 8 * math.ceil(idx / 8)
+            print(filepath.decode())
+
 
 class GitIndexEntry(object):
     ctime = None
