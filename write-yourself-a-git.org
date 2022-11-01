@@ -24,7 +24,7 @@
 #+LANGUAGE: en
 #+OPTIONS: ':t ^:nil
 
-#+SETUPFILE: org-html-themes/setup/theme-readtheorg-local.setup
+#+SETUPFILE: org-html-themes/org/theme-readtheorg-local.setup
 
 #+begin_src emacs-lisp :exports none :results none
   (let ((org-babel-inline-result-wrap "%s")
@@ -37,7 +37,7 @@
       ;; @TODO use rsync instead. Just create a _dist dir, copy/rename
       ;; all the things and rsync to webserver.
       (shell-command "scp write-yourself-a-git.html k9.thb.lt:/var/www/wyag.thb.lt/index.html")
-      (shell-command "scp -r org-html-themes/styles k9.thb.lt:/var/www/wyag.thb.lt/")))
+      (shell-command "scp -r org-html-themes/src k9.thb.lt:/var/www/wyag.thb.lt/")))
 #+end_src
 
 * Introduction
