@@ -160,7 +160,7 @@ some basic Git (obviously), some basic Python, some basic shell.
   users would be appreciated!
 #+END_warning
 
-#+begin_info
+#+begin_note
  **Acknowledgments**
 
  This article benefited from significant contributions from multiple
@@ -172,7 +172,7 @@ some basic Git (obviously), some basic Python, some basic shell.
   - GitHub user [[https://github.com/cutebbb][cutebbb]] implemented the first version of ls-files in
     [[https://github.com/thblt/write-yourself-a-git/pull/27/][#27]], and by doing so finally brought wyag to the wonders of the
     staging area!
-#+end_info
+#+end_note
 
 * Getting started
 :PROPERTIES:
@@ -1543,7 +1543,7 @@ matter is this:
 
 - they're text files, in the =.git/refs= hierarchy;
 - they hold the sha-1 identifier of an object, or a reference to
-  another branch.
+  another reference.
 
 To work with refs, we're first going to need a simple recursive solver
 that will take a ref name, follow eventual recursive references
@@ -1778,14 +1778,14 @@ ref file outside of the =refs= hierarchy, in =.git/HEAD=, which is an
 *indirect* ref (that is, it is of the form =ref: path/to/other/ref=, and
 not a simple hash).
 
-#+begin_info
+#+begin_note
 *Detached HEAD*
 
 When you just checkout a random commit, git will warn you it's in
 "detached HEAD state".  This means you're not on any branch
 anymore.  In this case, =.git/HEAD= is a *direct* reference: it
 contains a SHA-1.
-#+end_info
+#+end_note
 
 ** Referring to objects: the =object_find= function
 :PROPERTIES:
