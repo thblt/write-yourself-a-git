@@ -182,7 +182,7 @@ get this over with.
 We'll begin by creating the binary.  Create a new file called =wyag= in
 your text editor, and copy the following few lines:
 
-#+BEGIN_SRC python :tangle wyag
+#+BEGIN_SRC python :tangle wyag :tangle-mode (identity #o755)
   #!/usr/bin/env python3
 
   import libwyag
