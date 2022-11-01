@@ -58,6 +58,9 @@ No, don't run.
    "grep -v '^$' libwyag.py wyag | grep -v ' *#'  | wc -l")
 #+end_src
 
+#+RESULTS: slocs
+: 564
+
 It's not a joke, and it's really not complicated: if you read this
 article top to bottom and write the code (or just clone [[https://github.com/thblt/write-yourself-a-git][the repository]]
 --- but you should write the code yourself, really), you'll end up
@@ -105,6 +108,7 @@ More precisely, we'll implement:
     "hash-object"
     "init"
     "log"
+    "ls-files"
     "ls-tree"
     "merge"
     "rebase"
@@ -283,6 +287,12 @@ or merge them all in a single line)
    import hashlib
    #+END_SRC
 
+ - Just one function from [[https://docs.python.org/3/library/math.html][math]]:
+
+   #+BEGIN_SRC python :tangle libwyag.py
+   from math import ceil
+   #+END_SRC
+
  - [[https://docs.python.org/3/library/os.html][os]] and [[https://docs.python.org/3/library/os.path.html][os.path]] provide some nice filesystem abstraction routines.
 
    #+BEGIN_SRC python :tangle libwyag.py
@@ -336,23 +346,24 @@ and are responsible for processing and validating them before
 executing the actual command.
 
 #+BEGIN_SRC python :tangle libwyag.py
-def main(argv=sys.argv[1:]):
-    args = argparser.parse_args(argv)
+  def main(argv=sys.argv[1:]):
+      args = argparser.parse_args(argv)
 
-    if   args.command == "add"         : cmd_add(args)
-    elif args.command == "cat-file"    : cmd_cat_file(args)
-    elif args.command == "checkout"    : cmd_checkout(args)
-    elif args.command == "commit"      : cmd_commit(args)
-    elif args.command == "hash-object" : cmd_hash_object(args)
-    elif args.command == "init"        : cmd_init(args)
-    elif args.command == "log"         : cmd_log(args)
-    elif args.command == "ls-tree"     : cmd_ls_tree(args)
-    elif args.command == "merge"       : cmd_merge(args)
-    elif args.command == "rebase"      : cmd_rebase(args)
-    elif args.command == "rev-parse"   : cmd_rev_parse(args)
-    elif args.command == "rm"          : cmd_rm(args)
-    elif args.command == "show-ref"    : cmd_show_ref(args)
-    elif args.command == "tag"         : cmd_tag(args)
+      if   args.command == "add"         : cmd_add(args)
+      elif args.command == "cat-file"    : cmd_cat_file(args)
+      elif args.command == "checkout"    : cmd_checkout(args)
+      elif args.command == "commit"      : cmd_commit(args)
+      elif args.command == "hash-object" : cmd_hash_object(args)
+      elif args.command == "init"        : cmd_init(args)
+      elif args.command == "log"         : cmd_log(args)
+      elif args.command == "ls-files"    : cmd_ls_files(args)
+      elif args.command == "ls-tree"     : cmd_ls_tree(args)
+      elif args.command == "merge"       : cmd_merge(args)
+      elif args.command == "rebase"      : cmd_rebase(args)
+      elif args.command == "rev-parse"   : cmd_rev_parse(args)
+      elif args.command == "rm"          : cmd_rm(args)
+      elif args.command == "show-ref"    : cmd_show_ref(args)
+      elif args.command == "tag"         : cmd_tag(args)
 #+END_SRC
 
 * Creating repositories: init
@@ -1534,8 +1545,8 @@ an object, in which case they look like this:
 *Direct and indirect references*
 
 From now on, I will call a reference of the form =ref:
-path/to/other/ref= an *indirect* reference, and a ref with a SHA-1 object
-ID a *direct reference*.
+path/to/other/ref= an *indirect* reference, and a ref with a SHA-1
+object ID a *direct reference*.
 #+END_note
 
 This whole section will describe the uses of refs.  For now, all that
@@ -1763,7 +1774,7 @@ in  =.git/refs/heads=.
 
 There are, of course, differences between a branch and a tag:
 
-1. Branches are references to a commit, tags can refer to any object;
+1. Branches are references to a /commit/, tags can refer to any object;
 2. But most importantly, the branch ref is updated at each commit.  This means
    that whenever you commit, Git actually does this:
    1. a new commit object is created, with the current branch's ID as
@@ -1946,73 +1957,158 @@ arguments to its interface.
       print (object_find(repo, args.name, fmt, follow=True))
 #+END_SRC
 
-
 * The staging area and the index file
 
-Creating commits seems to be simply a matter of creating a bunch of
-new tree object (not just one, remember they're recursive --- you need
-exactly one per directory), a commit object pointing at the root tree
-object, and updating =HEAD= to point to that commit --- and yes, we
-could do it like this, but Git chooses a much more complicated road:
-the staging area, implemented in the form of the index file.
+# Creating commits /could/ just have been a matter of creating a bunch
+# of new tree objects (not just one, remember they're recursive), a
+# commit object pointing at the root tree object, and updating =HEAD= to
+# point to that commit --- and yes, we could do it like this, but Git
+# chooses a much more complicated road: the *staging area*, implemented in
+# the form of the *index file*.
 
-You certainly know that to commit in Git, you first "stage" some
-changes, using =git add= and =git rm=, /then/ commit.  It would seem logical
-to use a commit-like object to represent the staging area, but Git
-goes a completely different way, and uses a completely different
-mechanism, in the form of the index file.  The index file represents a
-set of changes from the HEAD commit, to commit, they must be combined
-to create a new commit.
+This final step will bring us to actually create commits.
+
+You probably know that to commit in Git, you first "stage" some
+changes, using =git add= and =git rm=, /then/ you commit them.  It
+would seem logical to use a commit-like object to represent the
+staging area, but Git goes a completely different way, and uses a
+completely different mechanism, in the form of the index file.  The
+**index file** feels a bit like a tree object: it associates paths to
+blobs, and so on.
+
+#+begin_note
+  **The staging area**
+
+  The contents of the index file are called the *staging area*.  The
+  staging area is not the same as the worktree, because git lets you
+  stage (with =git add -i=) "chunks", that is, only a /part/ of
+  changes made to a file.  The staging area may thus be different from
+  /both/ HEAD and the worktree.
+
+  If it's unclear, imagine you've modified two unrelated functions
+  from a single source file.  You may want to turn your two changes
+  into two different commits.  From a diff, you'd stage the first
+  change only, commit it, then stage the rest of the changes before
+  committing them in turn.
+#+end_note
+
+#+begin_note
+  **Why not just another tree?**
+
+  I believe there are two reasons why the index file isn't just
+  another tree object.  The first reason is anecdotal: performance.
+  The index is uncompressed, and stores data in raw form.  The most
+  important reason, thus, is that a tree is always a complete,
+  unambiguous representation, whereas the index needs to also
+  represent conflicts (like merge conflicts, when automatic merge
+  failed).  Strictly speaking, indexes are a superset of trees.
+#+end_note
 
 ** Parsing the index
 
 The index file is by far the most complicated piece of data a Git
 repository can hold.  Its complete documentation can be found in Git
-source tree at =Documentation/technical/commit-graph-format.txt=, you
-can read it [[https://github.com/git/git/blob/master/Documentation/technical/index-format.txt][on the Github mirror]].  The index is made of three parts:
+source tree at =Documentation/gitformat-index.txt=; you can read it [[https://github.com/git/git/blob/master/Documentation/gitformat-index.txt][on
+the Github mirror]].  The index is made of three parts:
 
 - A classic header with a signature and a few basic info, most
   importantly the number of entries it holds;
 - A series of entries, sorted, each representing a change;
 - A series of optional extensions, which we'll ignore.
 
-The only thing we need to represent is an entry item.  It actually
+The first thing we need to represent is a single entry.  It actually
 holds quite a lot of stuff:
 
+#+begin_src python :tangle libwyag.py
+  class GitIndexEntry (object):
+      def __init__(self, ctime=None, mtime=None, dev=None, ino=None,
+                   mode_type=None, mode_perms=None, uid=None, gid=None,
+                   fsize=None, object_hash=None, flag_assume_valid=None,
+                   flag_extended=None, flag_stage=None,
+                   flag_name_length=None, name=None):
+        """The last time a file's metadata changed.  This is a tuple (seconds, nanoseconds)"""
+        self.ctime = ctime
+        """The last time a file's data changed.  This is a tuple (seconds, nanoseconds)"""
+        self.mtime = mtime
+        """The ID of device containing this file"""
+        self.dev = dev
+        """The file's inode number"""
+        self.ino = ino
+        """The object type, either b1000 (regular), b1010 (symlink), b1110 (gitlink). """
+        self.mode_type = mode_type
+        """The object permissions, an integer."""
+        self.mode_perms = mode_perms
+        """User ID of owner"""
+        self.uid = uid
+        """Group ID of ownner (according to stat 2.  Isn'th)"""
+        self.gid = gid
+        """Size of this object, in bytes"""
+        self.fsize = fsize
+        """The object's hash as a hex string"""
+        self.object_hash = object_hash
+        self.flag_assume_valid = flag_assume_valid
+        self.flag_extended = flag_extended
+        self.flag_stage = flag_stage
+        """Length of the name if < 0xFFF (yes, three Fs), -1 otherwise"""
+        self.flag_name_length = flag_name_length
+        self.name = name
+#+end_src
+
 #+BEGIN_SRC python :tangle libwyag.py
-  class GitIndexEntry(object):
-      ctime = None
-      """The last time a file's metadata changed.  This is a tuple (seconds, nanoseconds)"""
+    class GitIndex (object):
+        signature = None
+        version = None
+        entries = []
+        # ext = None
+        # sha = None
 
-      mtime = None
-      """The last time a file's data changed.  This is a tuple (seconds, nanoseconds)"""
+        def __init__(self, file):
+            raw = None
+            with open(file, 'rb') as f:
+                raw = f.read()
 
-      dev = None
-      """The ID of device containing this file"""
-      ino = None
-      """The file's inode number"""
-      mode_type = None
-      """The object type, either b1000 (regular), b1010 (symlink), b1110 (gitlink). """
-      mode_perms = None
-      """The object permissions, an integer."""
-      uid = None
-      """User ID of owner"""
-      gid = None
-      """Group ID of ownner (according to stat 2.  Isn'th)"""
-      size = None
-      """Size of this object, in bytes"""
-      obj = None
-      """The object's hash as a hex string"""
-      flag_assume_valid = None
-      flag_extended = None
-      flag_stage = None
-      flag_name_length = None
-      """Length of the name if < 0xFFF (yes, three Fs), -1 otherwise"""
+            header = raw[:12]
+            self.signature = header[:4]
+            self.version = hex(int.from_bytes(header[4:8], "big"))
+            nindex = int.from_bytes(header[8:12], "big")
 
-      name = None
+            self.entries = list()
+
+            content = raw[12:]
+            idx = 0
+            for i in range(0, nindex):
+                ctime = content[idx: idx+8]
+                mtime = content[idx+8: idx+16]
+                dev = content[idx+16: idx+20]
+                ino = content[idx+20: idx+24]
+                mode = content[idx+24: idx+28] # TODO
+                uid = content[idx+28: idx+32]
+                gid = content[idx+32: idx+36]
+                fsize = content[idx+36: idx+40]
+                object_hash = content[idx+40: idx+60]
+                flag = content[idx+60: idx+62] # TODO
+                null_idx = content.find(b'\x00', idx+62) # TODO
+                name = content[idx+62: null_idx]
+
+                idx = null_idx + 1
+                idx = 8 * ceil(idx / 8)
+
+                self.entries.append(
+                    GitIndexEntry(ctime=ctime, mtime=mtime, dev=dev, ino=ino, mode_type=mode, uid=uid, gid=gid, fsize=fsize, object_hash=object_hash, name=name))
 #+END_SRC
 
-* Final words
+** The ls-files command
+
+#+BEGIN_SRC python :tangle libwyag.py
+    argsp = argsubparsers.add_parser("ls-files", help = "List all the stage files")
+
+    def cmd_ls_files(args):
+      repo = repo_find()
+      for e in GitIndex(os.path.join(repo.gitdir, 'index')).entries:
+        print("{0}".format(e.name.decode("utf8")))
+#+END_SRC
+
+* Final word
 
 ** Comments, feedback and issues
 :PROPERTIES:
@@ -2079,13 +2175,13 @@ following before you start working.
 #+end_src
 
 #+RESULTS:
-| Key              | Value                              |
-|------------------+------------------------------------|
-| Creation date    | Mon May 28 11:25:28 2018           |
-| On commit        | =0.1.1= (clean)                      |
-| By               | Thibault Polge (=thblt= on =maladict=) |
-| Emacs version    | 26.1                               |
-| Org-mode version | 9.1.13                             |
+| Key              | Value                             |
+|------------------+-----------------------------------|
+| Creation date    | Tue Nov  1 18:21:23 2022          |
+| On commit        | =0.1-34-gdd9b284= (*dirty*)       |
+| By               | Thibault Polge (=thblt= on =dru=) |
+| Emacs version    | 29.0.50                           |
+| Org-mode version | 9.6-pre                           |
 
 ** License
 
