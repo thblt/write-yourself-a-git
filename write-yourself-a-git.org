@@ -119,20 +119,21 @@ More precisely, we'll implement:
 #+end_src
 
 #+RESULTS:
-+ =add= ([[#cmd-add][wyag source]]) [[https://git-scm.com/docs/git-add][git man page]]
-+ =cat-file= ([[#cmd-cat-file][wyag source]]) [[https://git-scm.com/docs/git-cat-file][git man page]]
-+ =checkout= ([[#cmd-checkout][wyag source]]) [[https://git-scm.com/docs/git-checkout][git man page]]
-+ =commit= ([[#cmd-commit][wyag source]]) [[https://git-scm.com/docs/git-commit][git man page]]
-+ =hash-object= ([[#cmd-hash-object][wyag source]]) [[https://git-scm.com/docs/git-hash-object][git man page]]
-+ =init= ([[#cmd-init][wyag source]]) [[https://git-scm.com/docs/git-init][git man page]]
-+ =log= ([[#cmd-log][wyag source]]) [[https://git-scm.com/docs/git-log][git man page]]
-+ =ls-tree= ([[#cmd-ls-tree][wyag source]]) [[https://git-scm.com/docs/git-ls-tree][git man page]]
-+ =merge= ([[#cmd-merge][wyag source]]) [[https://git-scm.com/docs/git-merge][git man page]]
-+ =rebase= ([[#cmd-rebase][wyag source]]) [[https://git-scm.com/docs/git-rebase][git man page]]
-+ =rev-parse= ([[#cmd-rev-parse][wyag source]]) [[https://git-scm.com/docs/git-rev-parse][git man page]]
-+ =rm= ([[#cmd-rm][wyag source]]) [[https://git-scm.com/docs/git-rm][git man page]]
-+ =show-ref= ([[#cmd-show-ref][wyag source]]) [[https://git-scm.com/docs/git-show-ref][git man page]]
-+ =tag= ([[#cmd-tag][wyag source]]) [[https://git-scm.com/docs/git-tag][git man page]]
+- =add= ([[#cmd-add][wyag source]]) [[https://git-scm.com/docs/git-add][git man page]]
+- =cat-file= ([[#cmd-cat-file][wyag source]]) [[https://git-scm.com/docs/git-cat-file][git man page]]
+- =checkout= ([[#cmd-checkout][wyag source]]) [[https://git-scm.com/docs/git-checkout][git man page]]
+- =commit= ([[#cmd-commit][wyag source]]) [[https://git-scm.com/docs/git-commit][git man page]]
+- =hash-object= ([[#cmd-hash-object][wyag source]]) [[https://git-scm.com/docs/git-hash-object][git man page]]
+- =init= ([[#cmd-init][wyag source]]) [[https://git-scm.com/docs/git-init][git man page]]
+- =log= ([[#cmd-log][wyag source]]) [[https://git-scm.com/docs/git-log][git man page]]
+- =ls-files= ([[#cmd-ls-files][wyag source]]) [[https://git-scm.com/docs/git-ls-files][git man page]]
+- =ls-tree= ([[#cmd-ls-tree][wyag source]]) [[https://git-scm.com/docs/git-ls-tree][git man page]]
+- =merge= ([[#cmd-merge][wyag source]]) [[https://git-scm.com/docs/git-merge][git man page]]
+- =rebase= ([[#cmd-rebase][wyag source]]) [[https://git-scm.com/docs/git-rebase][git man page]]
+- =rev-parse= ([[#cmd-rev-parse][wyag source]]) [[https://git-scm.com/docs/git-rev-parse][git man page]]
+- =rm= ([[#cmd-rm][wyag source]]) [[https://git-scm.com/docs/git-rm][git man page]]
+- =show-ref= ([[#cmd-show-ref][wyag source]]) [[https://git-scm.com/docs/git-show-ref][git man page]]
+- =tag= ([[#cmd-tag][wyag source]]) [[https://git-scm.com/docs/git-tag][git man page]]
 
 You're not going to need to know much to follow this article: just
 some basic Git (obviously), some basic Python, some basic shell.
@@ -2098,6 +2099,9 @@ holds quite a lot of stuff:
 #+END_SRC
 
 ** The ls-files command
+:PROPERTIES:
+:CUSTOM_ID: cmd-ls-files
+:END:
 
 #+BEGIN_SRC python :tangle libwyag.py
     argsp = argsubparsers.add_parser("ls-files", help = "List all the stage files")
