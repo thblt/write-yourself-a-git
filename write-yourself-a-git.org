@@ -1182,8 +1182,10 @@ Now we have the parser, we can create the =GitCommit= class:
 
 We'll implement a much, much simpler version of =log= than what Git
 provides.  Most importantly, we won't deal with representing the log
-/at all/.  Instead, we'll dump Graphviz data and let the user use =dot= to
-render the actual log.
+/at all/.  Instead, we'll dump Graphviz data and let the user use
+=dot= to render the actual log.  (If you don't know how to use
+Graphviz, just paste the raw output into [[https://dreampuf.github.io/GraphvizOnline/][this site]].  If the link is
+dead, lookup "graphviz online" in your favorite search engine)
 
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser("log", help="Display history of a given commit.")
