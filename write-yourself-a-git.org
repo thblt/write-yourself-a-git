@@ -160,6 +160,20 @@ some basic Git (obviously), some basic Python, some basic shell.
   users would be appreciated!
 #+END_warning
 
+#+begin_info
+ **Acknowledgments**
+
+ This article benefited from significant contributions from multiple
+ people, and I'm grateful to them all.  Special thanks to:
+
+  - Github user [[https://github.com/tammoippen][tammoippen]], who first drafted the =tag_create=
+    function I had simply… forgotten to write (that was [[https://github.com/thblt/write-yourself-a-git/issues/9][#9]]).
+  - Github user [[https://github.com/hjlarry][hjlarry]] fixed multiple issues in [[https://github.com/thblt/write-yourself-a-git/pull/22][#22]].
+  - GitHub user [[https://github.com/cutebbb][cutebbb]] implemented the first version of ls-files in
+    [[https://github.com/thblt/write-yourself-a-git/pull/27/][#27]], and by doing so finally brought wyag to the wonders of the
+    staging area!
+#+end_info
+
 * Getting started
 :PROPERTIES:
 :CUSTOM_ID: getting-started
