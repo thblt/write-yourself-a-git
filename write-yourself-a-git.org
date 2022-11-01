@@ -393,7 +393,7 @@ a =Repository= object to /create/ the repo.  So we need a way to create
 repository even from (still) invalid filesystem locations.
 
 #+BEGIN_SRC python :tangle libwyag.py
-  class GitRepository(object):
+  class GitRepository (object):
       """A git repository"""
 
       worktree = None
@@ -1348,7 +1348,7 @@ The parser is going to be quite simple.  First, create a tiny object
 wrapper for a single record (a leaf, a single path):
 
 #+BEGIN_SRC python :tangle libwyag.py
-  class GitTreeLeaf(object):
+  class GitTreeLeaf (object):
       def __init__(self, mode, path, sha):
           self.mode = mode
           self.path = path
