@@ -1387,7 +1387,6 @@ Last but not least, we'll need a serializer:
 
 #+BEGIN_SRC python :tangle libwyag.py
   def tree_serialize(obj):
-      #@FIXME Add serializer!
       ret = b''
       for i in obj.items:
           ret += i.mode
@@ -1395,7 +1394,6 @@ Last but not least, we'll need a serializer:
           ret += i.path
           ret += b'\x00'
           sha = int(i.sha, 16)
-          # @FIXME Does
           ret += sha.to_bytes(20, byteorder="big")
       return ret
 #+END_SRC
