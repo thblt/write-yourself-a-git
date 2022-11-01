@@ -313,7 +313,7 @@ Python provides a simple yet reasonably powerful parsing library,
 intuitive ever; if need, refer to its [[https://docs.python.org/3/library/argparse.html][documentation]].
 
 #+BEGIN_SRC python :tangle libwyag.py
-  argparser = argparse.ArgumentParser(description="The stupid content tracker")
+  argparser = argparse.ArgumentParser(description="The stupidest content tracker")
 #+END_SRC
 
 We'll need to handle subcommands (as in git: =init=, =commit=, etc.)  In
