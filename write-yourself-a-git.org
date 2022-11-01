@@ -2158,6 +2158,7 @@ following before you start working.
 ** Release information
 
 #+begin_src emacs-lisp :exports results :results table
+  (require 'magit-git)
   (list
    '("Key" "Value")
    'hline
