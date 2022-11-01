@@ -1670,18 +1670,18 @@ complicated for argparse.
       help="List and create tags")
 
   argsp.add_argument("-a",
-                      action="store_true",
-                      dest="create_tag_object",
-                      help="Whether to create a tag object")
+                     action="store_true",
+                     dest="create_tag_object",
+                     help="Whether to create a tag object")
 
   argsp.add_argument("name",
-                      nargs="?",
-                      help="The new tag's name")
+                     nargs="?",
+                     help="The new tag's name")
 
   argsp.add_argument("object",
-                      default="HEAD",
-                      nargs="?",
-                      help="The object the new tag will point to")
+                     default="HEAD",
+                     nargs="?",
+                     help="The object the new tag will point to")
 #+END_SRC
 
 The =cmd_tag= function will dispatch behavior (list or create) depending
