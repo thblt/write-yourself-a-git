@@ -1,3 +1,6 @@
-[submodule "org-html-themes"]
-	path = org-html-themes
+[submodule "lib/org-html-themes"]
+	path = lib/org-html-themes
 	url = https://github.com/fniessen/org-html-themes
+[submodule "lib/htmlize"]
+	path = lib/htmlize
+	url = https://github.com/hniksic/emacs-htmlize

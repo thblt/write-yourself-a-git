@@ -1,3 +1,6 @@
-__pycache__
-src
 *.html
+.last_push
+__pycache__
+libwyag.py
+src
+wyag

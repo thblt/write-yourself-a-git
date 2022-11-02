@@ -1,3 +1,11 @@
 #+TITLE: Write yourself a Git!
 
 Source repository for the [[https://wyag.thb.lt][Write yourself a Git]] article.
+
+Wyag is a [[https://en.wikipedia.org/wiki/Literate_programming][literate program]] written in [[https://orgmode.org/][org-mode]], which means the same source document can be used to produce the HTML version of the article as published on [[https://wyag.thb.lt]] and the program itself.  You only need a reasonably recent Emacs and the =make= program, then:
+
+#+begin_src shell
+  $ git clone --recursive https://github.com/thblt/write-yourself-a-git
+  $ cd write-yourself-a-git
+  $ make all
+#+end_src

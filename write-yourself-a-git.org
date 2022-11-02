@@ -24,21 +24,7 @@
 #+LANGUAGE: en
 #+OPTIONS: ':t ^:nil
 
-#+SETUPFILE: org-html-themes/org/theme-readtheorg-local.setup
-
-#+begin_src emacs-lisp :exports none :results none
-  (let ((org-babel-inline-result-wrap "%s")
-        (org-confirm-babel-evaluate nil)
-        (org-export-with-broken-links t))
-        ;; FIXME set this to nil when releasing!
-    (org-html-export-to-html)
-    ;; publish only if I'm me
-    (when (string= "thblt" (user-login-name))
-      ;; @TODO use rsync instead. Just create a _dist dir, copy/rename
-      ;; all the things and rsync to webserver.
-      (shell-command "scp write-yourself-a-git.html k9.thb.lt:/var/www/wyag.thb.lt/index.html")
-      (shell-command "scp -r org-html-themes/src k9.thb.lt:/var/www/wyag.thb.lt/")))
-#+end_src
+#+SETUPFILE: lib/org-html-themes/org/theme-readtheorg-local.setup
 
 * Introduction
 
@@ -57,9 +43,6 @@ No, don't run.
   (shell-command-to-string
    "grep -v '^$' libwyag.py wyag | grep -v ' *#'  | wc -l")
 #+end_src
-
-#+RESULTS: slocs
-: 564
 
 It's not a joke, and it's really not complicated: if you read this
 article top to bottom and write the code (or just clone [[https://github.com/thblt/write-yourself-a-git][the repository]]
@@ -117,23 +100,6 @@ More precisely, we'll implement:
     "show-ref"
     "tag"))
 #+end_src
-
-#+RESULTS:
-- =add= ([[#cmd-add][wyag source]]) [[https://git-scm.com/docs/git-add][git man page]]
-- =cat-file= ([[#cmd-cat-file][wyag source]]) [[https://git-scm.com/docs/git-cat-file][git man page]]
-- =checkout= ([[#cmd-checkout][wyag source]]) [[https://git-scm.com/docs/git-checkout][git man page]]
-- =commit= ([[#cmd-commit][wyag source]]) [[https://git-scm.com/docs/git-commit][git man page]]
-- =hash-object= ([[#cmd-hash-object][wyag source]]) [[https://git-scm.com/docs/git-hash-object][git man page]]
-- =init= ([[#cmd-init][wyag source]]) [[https://git-scm.com/docs/git-init][git man page]]
-- =log= ([[#cmd-log][wyag source]]) [[https://git-scm.com/docs/git-log][git man page]]
-- =ls-files= ([[#cmd-ls-files][wyag source]]) [[https://git-scm.com/docs/git-ls-files][git man page]]
-- =ls-tree= ([[#cmd-ls-tree][wyag source]]) [[https://git-scm.com/docs/git-ls-tree][git man page]]
-- =merge= ([[#cmd-merge][wyag source]]) [[https://git-scm.com/docs/git-merge][git man page]]
-- =rebase= ([[#cmd-rebase][wyag source]]) [[https://git-scm.com/docs/git-rebase][git man page]]
-- =rev-parse= ([[#cmd-rev-parse][wyag source]]) [[https://git-scm.com/docs/git-rev-parse][git man page]]
-- =rm= ([[#cmd-rm][wyag source]]) [[https://git-scm.com/docs/git-rm][git man page]]
-- =show-ref= ([[#cmd-show-ref][wyag source]]) [[https://git-scm.com/docs/git-show-ref][git man page]]
-- =tag= ([[#cmd-tag][wyag source]]) [[https://git-scm.com/docs/git-tag][git man page]]
 
 You're not going to need to know much to follow this article: just
 some basic Git (obviously), some basic Python, some basic shell.
@@ -2164,14 +2130,14 @@ following before you start working.
 ** Release information
 
 #+begin_src emacs-lisp :exports results :results table
-  (require 'magit-git)
   (list
    '("Key" "Value")
    'hline
    `("Creation date" ,(current-time-string))
    `("On commit" ,(format "=%s= (%s)"
-                       (car (magit-git-lines "describe" "--tags" "--always"))
-                       (if (zerop (length (magit-git-lines "status" "--porcelain=v2")))
+                       (string-trim (shell-command-to-string "git describe --tags --always"))
+                       (if (string-empty-p
+                             (string-trim (shell-command-to-string "git status --porcelain=v2")))
                            "clean" "*dirty*")))
    `("By" ,(format "%s (=%s= on =%s=)"
      (user-full-name)
@@ -2180,15 +2146,6 @@ following before you start working.
    `("Emacs version" ,emacs-version)
    `("Org-mode version" ,org-version))
 #+end_src
-
-#+RESULTS:
-| Key              | Value                             |
-|------------------+-----------------------------------|
-| Creation date    | Tue Nov  1 18:21:23 2022          |
-| On commit        | =0.1-34-gdd9b284= (*dirty*)       |
-| By               | Thibault Polge (=thblt= on =dru=) |
-| Emacs version    | 29.0.50                           |
-| Org-mode version | 9.6-pre                           |
 
 ** License
 
