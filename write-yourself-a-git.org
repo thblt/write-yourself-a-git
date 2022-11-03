@@ -2135,7 +2135,7 @@ feedback, you may use:
                    Github.  Before you start making any changes,
                    please read the next section.
 
-- IRC :: I'm thblt on Freenode, feel free to message me!
+- IRC :: I'm thblt on Libera, feel free to message me!
 
 # - Reddit :: I also follow informal discussions on Reddit.  This
 #             article was shared on the Git and Python subreddits:
