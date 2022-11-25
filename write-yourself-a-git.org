@@ -568,15 +568,16 @@ able to =wyag init= a git repository anywhere.
 
 ** The repo_find() function
 
-While we're implementing repositories, there's a function we're going
-to need a lot later: Almost all Git functions =init= use an existing
-repository.  It's often in the current directory, but it may be in a
-parent instead: your repository's root may be in
-=~/Documents/MyProject=, but you may currently be in
+While we're implementing repositories, we're going to need a function
+to find the root of the current repository.  We'll use it a lot, since
+almost all Git functions work on an existing repository (except
+=init=, of course!).  Sometimes that root is the current directory,
+but it may also be a parent: your repository's root may be in
+=~/Documents/MyProject=, but you may currently be working in
 =~/Documents/MyProject/src/tui/frames/mainview/=.  The =repo_find()=
-function we'll now create will look for a repository, starting at
-current directory and recursing back until =/=.  To identify something
-as a repo, it will check for the presence of a =.git= directory.
+function we'll now create will look for that root, starting at the
+current directory and recursing back to =/=.  To identify a path as a
+repository, it will check for the presence of a =.git= directory.
 
 #+BEGIN_SRC python :tangle libwyag.py
 def repo_find(path=".", required=True):
