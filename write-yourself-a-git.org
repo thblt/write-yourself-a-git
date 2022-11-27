@@ -1355,11 +1355,8 @@ it reached in input data:
       # and read the path
       path = raw[x+1:y]
 
-      # Read the SHA and convert to an hex string
-      sha = hex(
-          int.from_bytes(
-              raw[y+1:y+21], "big"))[2:] # hex() adds 0x in front,
-                                             # we don't want that.
+      # Read the SHA and convert to a hex string
+      sha = format(int.from_bytes(raw[y+1:y+21], "big"), "040x")
       return y+21, GitTreeLeaf(mode, path, sha)
 #+END_SRC
 
