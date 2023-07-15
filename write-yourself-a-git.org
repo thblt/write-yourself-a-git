@@ -1984,7 +1984,7 @@ the Github mirror]].  The index is made of three parts:
 - A series of optional extensions, which we'll ignore.
 
 The first thing we need to represent is a single entry.  It actually
-holds quite a lot of stuff:
+holds quite a lot of stuff, I'm leaving the details in comments.
 
 #+begin_src python :tangle libwyag.py
   class GitIndexEntry (object):
@@ -2021,48 +2021,66 @@ holds quite a lot of stuff:
         self.name = name
 #+end_src
 
+The index file is a binary file, likely for performance reasons.  The
+format is reasonably simple, though.  It begins with a header with the
+=DIRC= magic bytes, a version number and the total number of entries
+in that index file. The rest of the file is a series of entries.  An entry begins with a set of fixed-length
+data, followed by a variable-length name.  It begins with the usual
+file metadata: creation and modification time, mode, owner and group
+id, size, and an object hash of course) followed by a variable-length
+name, terminated by a NULL byte (0x00), that's the path for that
+file).  The code is quite straightforward:
+
 #+BEGIN_SRC python :tangle libwyag.py
-    class GitIndex (object):
-        signature = None
-        version = None
-        entries = []
-        # ext = None
-        # sha = None
+  class GitIndex (object):
+      signature = None
+      version = None
+      entries = []
+      # ext = None
+      # sha = None
 
-        def __init__(self, file):
-            raw = None
-            with open(file, 'rb') as f:
-                raw = f.read()
+      def __init__(self, file):
+          raw = None
+          with open(file, 'rb') as f:
+              raw = f.read()
 
-            header = raw[:12]
-            self.signature = header[:4]
-            self.version = hex(int.from_bytes(header[4:8], "big"))
-            nindex = int.from_bytes(header[8:12], "big")
+          header = raw[:12]
+          self.signature = header[:4]
+          assert(self.signature == b"DIRC") # Stands for "DirCache"
+          self.version = int.from_bytes(header[4:8], "big")
+          assert (2 == self.version)
+          count = int.from_bytes(header[8:12], "big")
 
-            self.entries = list()
+          self.entries = list()
 
-            content = raw[12:]
-            idx = 0
-            for i in range(0, nindex):
-                ctime = content[idx: idx+8]
-                mtime = content[idx+8: idx+16]
-                dev = content[idx+16: idx+20]
-                ino = content[idx+20: idx+24]
-                mode = content[idx+24: idx+28] # TODO
-                uid = content[idx+28: idx+32]
-                gid = content[idx+32: idx+36]
-                fsize = content[idx+36: idx+40]
-                object_hash = content[idx+40: idx+60]
-                flag = content[idx+60: idx+62] # TODO
-                null_idx = content.find(b'\x00', idx+62) # TODO
-                name = content[idx+62: null_idx]
+          content = raw[12:]
+          idx = 0
+          for i in range(0, count):
+              ctime = content[idx: idx+8]
+              mtime = content[idx+8: idx+16]
+              dev = content[idx+16: idx+20]
+              ino = content[idx+20: idx+24]
+              mode = content[idx+24: idx+28] # TODO
+              uid = content[idx+28: idx+32]
+              gid = content[idx+32: idx+36]
+              fsize = content[idx+36: idx+40]
+              object_hash = content[idx+40: idx+60]
+              flags = content[idx+60: idx+62]
+              # TODO Actually read the flags, reject or process if extended_flag
+              null_idx = content.find(b'\x00', idx+62) # TODO
+              name = content[idx+62: null_idx]
 
-                idx = null_idx + 1
-                idx = 8 * ceil(idx / 8)
+              idx = null_idx + 1
+              idx = 8 * ceil(idx / 8)
 
-                self.entries.append(
-                    GitIndexEntry(ctime=ctime, mtime=mtime, dev=dev, ino=ino, mode_type=mode, uid=uid, gid=gid, fsize=fsize, object_hash=object_hash, name=name))
+              self.entries.append(
+                  GitIndexEntry(ctime=ctime, mtime=mtime, dev=dev, ino=ino, mode_type=mode, uid=uid, gid=gid, fsize=fsize, object_hash=object_hash, name=name))
 #+END_SRC
+
+We'll keep `ls-files` very simple: just display the list of files in
+the index tree.  This is just to show how to use the index, we'll put
+more complexity in `status`!
+
 
 ** The ls-files command
 :PROPERTIES:
@@ -2077,6 +2095,11 @@ holds quite a lot of stuff:
       for e in GitIndex(os.path.join(repo.gitdir, 'index')).entries:
         print("{0}".format(e.name.decode("utf8")))
 #+END_SRC
+
+If you run ls-tree, you'll notice that on a “clean” worktree (an
+unmodified checkout of HEAD), it lists all files on HEAD.  The index
+is not a delta (a list of differences) from the HEAD commit, but
+starts as a copy of it, in a different format.
 
 * Final word
 
