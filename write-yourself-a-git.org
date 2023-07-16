@@ -1065,7 +1065,7 @@ I use KVLM to mean "Key-Value List with Message".
       # case find returns -1), we assume a blank line.  A blank line
       # means the remainder of the data is the message.
       if (spc < 0) or (nl < spc):
-          assert(nl == start)
+          assert nl == start
           dct[b''] = raw[start+1:]
           return dct
 
@@ -1177,7 +1177,7 @@ dead, lookup "graphviz online" in your favorite search engine)
       seen.add(sha)
 
       commit = object_read(repo, sha)
-      assert (commit.fmt==b'commit')
+      assert commit.fmt==b'commit'
 
       if not b'parent' in commit.kvlm.keys():
           # Base case: the initial commit.
@@ -1345,7 +1345,7 @@ it reached in input data:
   def tree_parse_one(raw, start=0):
       # Find the space terminator of the mode
       x = raw.find(b' ', start)
-      assert(x-start == 5 or x-start==6)
+      assert x-start == 5 or x-start==6
 
       # Read the mode
       mode = raw[start:x]
