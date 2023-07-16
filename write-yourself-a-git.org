@@ -564,7 +564,11 @@ command, we're only going to need two more things:
     #+END_SRC
 
 And we're done!  If you've followed these steps, you should now be
-able to =wyag init= a git repository anywhere.
+able to =wyag init= a git repository anywhere:
+
+#+begin_example
+  $ wyag init test
+#+end_example
 
 ** The repo_find() function
 
