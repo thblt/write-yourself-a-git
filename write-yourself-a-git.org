@@ -1933,11 +1933,12 @@ arguments to its interface.
 # chooses a much more complicated road: the *staging area*, implemented in
 # the form of the *index file*.
 
-This final step will bring us to actually create commits.
+This final step will bring us to /prepare/ commits (creating them is
+for the next section!)
 
 You probably know that to commit in Git, you first "stage" some
 changes, using =git add= and =git rm=, /then/ you commit them.  It
-would seem logical to use a commit-like object to represent the
+would seem natural to use a commit-like object to represent the
 staging area, but Git goes a completely different way, and uses a
 completely different mechanism, in the form of the index file.  The
 **index file** feels a bit like a tree object: it associates paths to
@@ -1976,23 +1977,29 @@ blobs, and so on.
 The index file is by far the most complicated piece of data a Git
 repository can hold.  Its complete documentation can be found in Git
 source tree at =Documentation/gitformat-index.txt=; you can read it [[https://github.com/git/git/blob/master/Documentation/gitformat-index.txt][on
-the Github mirror]].  The index is made of three parts:
+the Github mirror]].  It's made of three parts:
 
-- A classic header with a signature and a few basic info, most
-  importantly the number of entries it holds;
-- A series of entries, sorted, each representing a change;
-- A series of optional extensions, which we'll ignore.
+  - An header with the format version number and the number of entries
+    the index holds;
+  - A series of entries, sorted, each representing a file;
+  - A series of optional extensions, which we'll ignore.
 
 The first thing we need to represent is a single entry.  It actually
 holds quite a lot of stuff, I'm leaving the details in comments.
+What's worth noticing is that an entry stores *both* the SHA1 of the
+associated glob in git's objects store and a ton of metadata about the
+actual file on the actual filesystem.  This is because =git/wyag
+status= will need to determine which files in the index were modified:
+it is much more efficient to begin by checking the last-modified
+timestamp and comparing it with a known values, before comparing
+actual files.
 
 #+begin_src python :tangle libwyag.py
   class GitIndexEntry (object):
       def __init__(self, ctime=None, mtime=None, dev=None, ino=None,
                    mode_type=None, mode_perms=None, uid=None, gid=None,
                    fsize=None, object_hash=None, flag_assume_valid=None,
-                   flag_extended=None, flag_stage=None,
-                   flag_name_length=None, name=None):
+                   flag_stage=None, name=None):
         """The last time a file's metadata changed.  This is a tuple (seconds, nanoseconds)"""
         self.ctime = ctime
         """The last time a file's data changed.  This is a tuple (seconds, nanoseconds)"""
@@ -2007,93 +2014,155 @@ holds quite a lot of stuff, I'm leaving the details in comments.
         self.mode_perms = mode_perms
         """User ID of owner"""
         self.uid = uid
-        """Group ID of ownner (according to stat 2.  Isn'th)"""
+        """Group ID of ownner"""
         self.gid = gid
         """Size of this object, in bytes"""
         self.fsize = fsize
         """The object's hash as a hex string"""
         self.object_hash = object_hash
         self.flag_assume_valid = flag_assume_valid
-        self.flag_extended = flag_extended
         self.flag_stage = flag_stage
         """Length of the name if < 0xFFF (yes, three Fs), -1 otherwise"""
-        self.flag_name_length = flag_name_length
         self.name = name
 #+end_src
 
 The index file is a binary file, likely for performance reasons.  The
 format is reasonably simple, though.  It begins with a header with the
 =DIRC= magic bytes, a version number and the total number of entries
-in that index file. The rest of the file is a series of entries.  An entry begins with a set of fixed-length
-data, followed by a variable-length name.  It begins with the usual
-file metadata: creation and modification time, mode, owner and group
-id, size, and an object hash of course) followed by a variable-length
-name, terminated by a NULL byte (0x00), that's the path for that
-file).  The code is quite straightforward:
+in that index file. The rest of the file is a series of entries.  An
+entry begins with a set of fixed-length data, followed by a
+variable-length name.  It begins with the usual file metadata:
+creation and modification time, mode, owner and group id, size, and an
+object hash of course) followed by a variable-length name, terminated
+by a NULL byte (0x00), that's the path for that file).  The code is
+quite straightforward:
 
 #+BEGIN_SRC python :tangle libwyag.py
   class GitIndex (object):
-      signature = None
       version = None
       entries = []
       # ext = None
       # sha = None
 
-      def __init__(self, file):
-          raw = None
-          with open(file, 'rb') as f:
-              raw = f.read()
+      def __init__(self, version, entries):
+          self.version = version
+          self.entries = entries
 
-          header = raw[:12]
-          self.signature = header[:4]
-          assert(self.signature == b"DIRC") # Stands for "DirCache"
-          self.version = int.from_bytes(header[4:8], "big")
-          assert (2 == self.version)
-          count = int.from_bytes(header[8:12], "big")
-
-          self.entries = list()
-
-          content = raw[12:]
-          idx = 0
-          for i in range(0, count):
-              ctime = content[idx: idx+8]
-              mtime = content[idx+8: idx+16]
-              dev = content[idx+16: idx+20]
-              ino = content[idx+20: idx+24]
-              mode = content[idx+24: idx+28] # TODO
-              uid = content[idx+28: idx+32]
-              gid = content[idx+32: idx+36]
-              fsize = content[idx+36: idx+40]
-              object_hash = content[idx+40: idx+60]
-              flags = content[idx+60: idx+62]
-              # TODO Actually read the flags, reject or process if extended_flag
-              null_idx = content.find(b'\x00', idx+62) # TODO
-              name = content[idx+62: null_idx]
-
-              idx = null_idx + 1
-              idx = 8 * ceil(idx / 8)
-
-              self.entries.append(
-                  GitIndexEntry(ctime=ctime, mtime=mtime, dev=dev, ino=ino, mode_type=mode, uid=uid, gid=gid, fsize=fsize, object_hash=object_hash, name=name))
 #+END_SRC
 
-We'll keep `ls-files` very simple: just display the list of files in
-the index tree.  This is just to show how to use the index, we'll put
-more complexity in `status`!
+#+BEGIN_SRC python :tangle libwyag.py
 
+  def index_read(file):
+      with open(file, 'rb') as f:
+          raw = f.read()
+
+      header = raw[:12]
+      signature = header[:4]
+      assert signature == b"DIRC" # Stands for "DirCache"
+      version = int.from_bytes(header[4:8], "big")
+      assert version == 2, "wyag only supports index file version 2"
+      count = int.from_bytes(header[8:12], "big")
+
+      entries = list()
+
+      content = raw[12:]
+      idx = 0
+      for i in range(0, count):
+          ctime_s = int.from_bytes(content[idx: idx+4], "big")
+          ctime_ns = int.from_bytes(content[idx+4: idx+8], "big")
+          mtime_s = int.from_bytes(content[idx+8: idx+12], "big")
+          mtime_ns = int.from_bytes(content[idx+12: idx+16], "big")
+          dev = int.from_bytes(content[idx+16: idx+20], "big")
+          ino = int.from_bytes(content[idx+20: idx+24], "big")
+          unused = int.from_bytes(content[idx+24: idx+26], "big")
+          assert 0 == unused
+          mode = int.from_bytes(content[idx+26: idx+28], "big")
+          mode_type = mode >> 12
+          assert mode_type in [0b1000, 0b1010, 0b1110]
+          mode_perms = mode & 0b0000000111111111
+          uid = int.from_bytes(content[idx+28: idx+32], "big")
+          gid = int.from_bytes(content[idx+32: idx+36], "big")
+          fsize = int.from_bytes(content[idx+36: idx+40], "big")
+          object_hash = int.from_bytes(content[idx+40: idx+60], "big")
+          flags = int.from_bytes(content[idx+60: idx+62], "big")
+          # Parse flags
+          flag_assume_valid = (flags & 0b1000000000000000) != 0
+          flag_extended = (flags & 0b0100000000000000) != 0
+          assert not flag_extended
+          flag_stage =  flags & 0b0011000000000000 # ???
+          name_length = flags & 0b0000111111111111
+
+          null_idx = content.find(b'\x00', idx+62) # TODO
+          name = content[idx+62: null_idx]
+
+          if len(name) > 0xFFF:
+              assert name_length == 0xFFF
+          else:
+              assert name_length == len(name)
+
+          idx = null_idx + 1
+          idx = 8 * ceil(idx / 8)
+
+          entries.append( GitIndexEntry(ctime=(ctime_s,
+                                               ctime_ns),
+                                        mtime=(mtime_s,
+                                               mtime_ns),
+                                        dev=dev,
+                                        ino=ino,
+                                        mode_type=mode_type,
+                                        mode_perms=mode_perms,
+                                        uid=uid,
+                                        gid=gid,
+                                        fsize=fsize,
+                                        object_hash=object_hash,
+                                        flag_assume_valid=flag_assume_valid,
+                                        flag_stage=flag_stage,
+                                        name=name))
+
+      return GitIndex(version=version, entries=entries)
+#+END_SRC
 
 ** The ls-files command
 :PROPERTIES:
 :CUSTOM_ID: cmd-ls-files
 :END:
 
-#+BEGIN_SRC python :tangle libwyag.py
-    argsp = argsubparsers.add_parser("ls-files", help = "List all the stage files")
+We'll keep =ls-files= very simple: just display the list of files in
+the index tree.  But we'll add a --verbose option that doesn't exist
+in git, just so we can display every single bit of info in the index
+file.
 
-    def cmd_ls_files(args):
-      repo = repo_find()
-      for e in GitIndex(os.path.join(repo.gitdir, 'index')).entries:
-        print("{0}".format(e.name.decode("utf8")))
+This is just to show how to use the index, we'll put
+more complexity in `status`!
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argsp = argsubparsers.add_parser("ls-files", help = "List all the stage files")
+  argsp.add_argument("--verbose", action="store_true", help="Show everything.")
+  from datetime import datetime # @FIXME
+  import grp, pwd
+
+  def cmd_ls_files(args):
+    repo = repo_find()
+    index = index_read(os.path.join(repo.gitdir, 'index'))
+    if args.verbose:
+      print("Index file format v{}, containing {} entries.".format(index.version, len(index.entries)))
+
+    for e in index.entries:
+      print("{}".format(e.name.decode("utf8")))
+      if args.verbose:
+        print("  {} with perms: {:o}".format(
+          { 0b1000: "regular file",
+            0b1010: "symlink",
+            0b1110: "git link" }[e.mode_type],
+          e.mode_perms))
+        print("  on blob: {:X}".format(e.object_hash))
+        print("  created: {}.{}, modified: {}.{}".format(
+          datetime.fromtimestamp(e.ctime[0])
+          , e.ctime[1]
+          , datetime.fromtimestamp(e.mtime[0])
+          , e.mtime[0]))
+        print("  device: {}, inode: {}".format(e.dev, e.ino))
+        print("  user: {} ({})  group: {} ({})".format(pwd.getpwuid(e.uid).pw_name, e.uid, grp.getgrgid(e.gid).gr_name, e.gid))
 #+END_SRC
 
 If you run ls-tree, you'll notice that on a “clean” worktree (an
@@ -2101,7 +2170,183 @@ unmodified checkout of HEAD), it lists all files on HEAD.  The index
 is not a delta (a list of differences) from the HEAD commit, but
 starts as a copy of it, in a different format.
 
-* Final word
+** Writing the index
+
+To be able to manipulate the staging area, we need to be able to write
+the index as well.  This is a bit tedious, but the code should be
+straightforward.  Again, the gory details are in comments.
+
+#+begin_src python :tangle libwyag.py
+  def index_write(index, file):
+      with open(file, "wb") as f:
+
+          # HEADER
+
+          # Write the magic bytes.
+          f.write(b"DIRC")
+          # Write version number.
+          f.write(index.version.to_bytes(4, "big"))
+          # Write the number of entries.
+          f.write(len(index.entries).to_bytes(4, "big"))
+          idx = 0
+          for e in index.entries:
+              f.write(e.ctime[0].to_bytes(4, "big"))
+              f.write(e.ctime[1].to_bytes(4, "big"))
+              f.write(e.mtime[0].to_bytes(4, "big"))
+              f.write(e.mtime[1].to_bytes(4, "big"))
+              f.write(e.dev.to_bytes(4, "big"))
+              f.write(e.ino.to_bytes(4, "big"))
+
+              # Mode
+              mode = (e.mode_type << 12) | e.mode_perms
+              f.write(mode.to_bytes(4, "big"))
+
+              f.write(e.uid.to_bytes(4, "big"))
+              f.write(e.gid.to_bytes(4, "big"))
+
+              f.write(e.fsize.to_bytes(4, "big"))
+              f.write(e.object_hash.to_bytes(20, "big"))
+
+              flag_assume_valid = 0x1 << 15 if e.flag_assume_valid else 0
+              if len(e.name) > 0xFFF:
+                  name_length = 0xFFF
+              else:
+                  name_length = len(e.name)
+
+              f.write((flag_assume_valid | e.flag_stage | name_length).to_bytes(2, "big"))
+
+              # Name
+              f.write(e.name)
+              f.write((0).to_bytes(1, "big"))
+
+              # Padding
+              idx += 62 + len(e.name) + 1
+              pad = 8 - (idx % 8)
+
+              if pad > 0:
+                  f.write((0).to_bytes(pad, "big"))
+                  idx += pad
+#+end_src
+
+** The rm command
+:PROPERTIES:
+:CUSTOM_ID: cmd-rm
+:END:
+
+The easiest change we can do to an index is to remove an entry from
+it, which mean that the next commit *won't include* this file.  This
+is the =git rm= command.
+
+#+BEGIN_warning
+  =git rm= is *destructive*, and so is =wyag rm=.  The command not
+  only modifies the index files, it also removes the file from the
+  worktree.  In other words, wyag rm *will destroy files from your
+  filesystem*.  This implementation tries to be tread carefully, but
+  proceed at your own risks
+#+END_warning
+
+=rm= takes a single argument, a list of paths to remove:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argsp = argsubparsers.add_parser("rm", help = "Remove files from the working tree and the index.")
+  argsp.add_argument("path", nargs="+", help="Files to remove")
+
+  def cmd_rm(args):
+    repo = repo_find()
+    rm(repo, args.path)
+#+END_src
+
+The function is a bit long, but it's very simple.  It takes a
+repository and a list of paths, reads that repository index, and
+removes entries in the index that match this list.  The optional
+arguments control whether the function should actually delete the
+files, and whether it should abort if some paths aren't present on the
+index (both those arguments are for the use of =add=).
+
+#+BEGIN_SRC python :tangle libwyag.py
+  def rm(repo, paths, delete=True, skip_missing=False):
+    # Find and read the index
+    index_path = os.path.join(repo.gitdir, 'index')
+    index = index_read(index_path)
+
+    worktree = repo.worktree + os.sep
+
+    # Make paths absolute
+    abspaths = list()
+    for path in paths:
+      abspath = os.path.abspath(path)
+      if abspath.startswith(worktree):
+        abspaths.append(abspath)
+      else:
+        raise Exception("Cannot remove paths outside of worktree: {}".format(paths))
+
+    kept_entries = list()
+    remove = list()
+
+    for e in index.entries:
+      name = e.name.decode("utf8")
+      full_path = os.path.join(repo.worktree, name)
+
+      if full_path in abspaths:
+        remove.append(full_path)
+        abspaths.remove(full_path)
+      else:
+        kept_entries.append(e) # Preserve entry
+
+    if len(abspaths) > 0 and not ignore_missing:
+      raise Exception("Cannot remove paths not in the index: {}".format(abspaths))
+
+    if delete:
+      for path in remove:
+        os.unlink(path)
+
+    index.entries = kept_entries
+    index_write(index, index_path)
+#+END_SRC
+
+And we can now delete files!
+
+** The add command
+:PROPERTIES:
+:CUSTOM_ID: cmd-add
+:END:
+
+Adding is just a bit more complex than removing, but nothing we don't
+already know.  Staging a file to a three-steps operation:
+
+ 1. We remove the existing entry, if any, without removing the file
+    itself (this is why the rm function we just wrote has those
+    optional arguments).
+ 2. Hash the file into a glob object.
+ 3. Create its entry.
+ 4. And of course, write the modified index back.
+
+First, the interface.  Nothing surprising, =wyag add PATH ...= where
+PATH is one or more file(s) to stage.
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argsp = argsubparsers.add_parser("add", help = "Add files contents to the index.")
+  argsp.add_argument("path", nargs="+", help="Files to add")
+
+  def cmd_add(args):
+    repo = repo_find()
+    add(repo, args.path)
+#+END_src
+
+** The status command :noexport:
+
+* Creating commits :noexport:
+
+** Turning indexes into trees                                     :noexport:
+
+** The commit command :noexport:
+
+To commit a set of changes, we need to turn the current index into a
+tree object, generate and store the corresponding commit object, and
+update the HEAD branch to the new commit (remember: a branch is just a
+ref to a commit).
+
+* Final words
 
 ** Comments, feedback and issues
 :PROPERTIES:
