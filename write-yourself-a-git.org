@@ -456,40 +456,40 @@ the following paths:
    - =.git/description=, the repository's description file.
 
 #+BEGIN_SRC python :tangle libwyag.py
-def repo_create(path):
-    """Create a new repository at path."""
+  def repo_create(path):
+      """Create a new repository at path."""
 
-    repo = GitRepository(path, True)
+      repo = GitRepository(path, True)
 
-    # First, we make sure the path either doesn't exist or is an
-    # empty dir.
+      # First, we make sure the path either doesn't exist or is an
+      # empty dir.
 
-    if os.path.exists(repo.worktree):
-        if not os.path.isdir(repo.worktree):
-            raise Exception ("%s is not a directory!" % path)
-        if os.listdir(repo.worktree):
-            raise Exception("%s is not empty!" % path)
-    else:
-        os.makedirs(repo.worktree)
+      if os.path.exists(repo.worktree):
+          if not os.path.isdir(repo.worktree):
+              raise Exception ("%s is not a directory!" % path)
+          if os.listdir(repo.worktree):
+              raise Exception("%s is not empty!" % path)
+      else:
+          os.makedirs(repo.worktree)
 
-    assert(repo_dir(repo, "branches", mkdir=True))
-    assert(repo_dir(repo, "objects", mkdir=True))
-    assert(repo_dir(repo, "refs", "tags", mkdir=True))
-    assert(repo_dir(repo, "refs", "heads", mkdir=True))
+      assert repo_dir(repo, "branches", mkdir=True)
+      assert repo_dir(repo, "objects", mkdir=True)
+      assert repo_dir(repo, "refs", "tags", mkdir=True)
+      assert repo_dir(repo, "refs", "heads", mkdir=True)
 
-    # .git/description
-    with open(repo_file(repo, "description"), "w") as f:
-        f.write("Unnamed repository; edit this file 'description' to name the repository.\n")
+      # .git/description
+      with open(repo_file(repo, "description"), "w") as f:
+          f.write("Unnamed repository; edit this file 'description' to name the repository.\n")
 
-    # .git/HEAD
-    with open(repo_file(repo, "HEAD"), "w") as f:
-        f.write("ref: refs/heads/master\n")
+      # .git/HEAD
+      with open(repo_file(repo, "HEAD"), "w") as f:
+          f.write("ref: refs/heads/master\n")
 
-    with open(repo_file(repo, "config"), "w") as f:
-        config = repo_default_config()
-        config.write(f)
+      with open(repo_file(repo, "config"), "w") as f:
+          config = repo_default_config()
+          config.write(f)
 
-    return repo
+      return repo
 #+END_SRC
 
 The configuration file is very simple, it's a INI-like file with a
