@@ -126,7 +126,7 @@ some basic Git (obviously), some basic Python, some basic shell.
   but I have absolutely no idea how it will behave on Windows.  The
   test suite absolutely requires a bash-compatible shell, which I
   assume the WSL can provide.  Also, if you are using WSL, make sure
-  your `wyag` file uses Unix-style line endings ([[https://stackoverflow.com/questions/48692741/how-can-i-make-all-line-endings-eols-in-all-files-in-visual-studio-code-unix][See this
+  your =wyag= file uses Unix-style line endings ([[https://stackoverflow.com/questions/48692741/how-can-i-make-all-line-endings-eols-in-all-files-in-visual-studio-code-unix][See this
   StackOverflow solution if you use VS Code]]).  Feedback from Windows
   users would be appreciated!
 #+END_warning
@@ -1403,6 +1403,11 @@ And now we just have to combine all that into a class:
           return tree_serialize(self)
 #+END_SRC
 
+** Showing trees: ls-tree
+:PROPERTIES:
+:CUSTOM_ID: cmd-ls-tree
+:END:
+
 While we're at it, let's add the =ls-tree= command to wyag.  It's
 so easy there's no reason not to.
 
@@ -1890,6 +1895,9 @@ steps, since tags themselves can be tagged)
 #+END_SRC
 
 *** The rev-parse command
+:PROPERTIES:
+:CUSTOM_ID: cmd-rev-parse
+:END:
 
 The =git rev-parse= commands does a lot, but one of its use cases is
 solving revision (commits) references.  For the purpose of testing the
@@ -2133,7 +2141,7 @@ in git, just so we can display every single bit of info in the index
 file.
 
 This is just to show how to use the index, we'll put
-more complexity in `status`!
+more complexity in =status=!
 
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser("ls-files", help = "List all the stage files")
