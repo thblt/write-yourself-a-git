@@ -86,6 +86,7 @@ More precisely, we'll implement:
    (list
     "add"
     "cat-file"
+    "check-ignore"
     "checkout"
     "commit"
     "hash-object"
@@ -264,6 +265,12 @@ or merge them all in a single line)
      import grp, pwd
    #+END_SRC
 
+ - To support =.gitignore=, we'll need to match filenames against
+   patterns like *.txt.  Filename matching is in… =fnmatch=:
+
+   #+BEGIN_SRC python :tangle libwyag.py
+     from fnmatch import fnmatch
+   #+END_SRC
 
  - Git uses the SHA-1 function quite extensively.  In Python, it's in [[https://docs.python.org/3/library/hashlib.html][hashlib]].
 
@@ -333,21 +340,22 @@ executing the actual command.
   def main(argv=sys.argv[1:]):
       args = argparser.parse_args(argv)
 
-      if   args.command == "add"         : cmd_add(args)
-      elif args.command == "cat-file"    : cmd_cat_file(args)
-      elif args.command == "checkout"    : cmd_checkout(args)
-      elif args.command == "commit"      : cmd_commit(args)
-      elif args.command == "hash-object" : cmd_hash_object(args)
-      elif args.command == "init"        : cmd_init(args)
-      elif args.command == "log"         : cmd_log(args)
-      elif args.command == "ls-files"    : cmd_ls_files(args)
-      elif args.command == "ls-tree"     : cmd_ls_tree(args)
-      elif args.command == "merge"       : cmd_merge(args)
-      elif args.command == "rebase"      : cmd_rebase(args)
-      elif args.command == "rev-parse"   : cmd_rev_parse(args)
-      elif args.command == "rm"          : cmd_rm(args)
-      elif args.command == "show-ref"    : cmd_show_ref(args)
-      elif args.command == "tag"         : cmd_tag(args)
+      if   args.command == "add"          : cmd_add(args)
+      elif args.command == "cat-file"     : cmd_cat_file(args)
+      elif args.command == "check-ignore" : cmd_check_ignore(args)
+      elif args.command == "checkout"     : cmd_checkout(args)
+      elif args.command == "commit"       : cmd_commit(args)
+      elif args.command == "hash-object"  : cmd_hash_object(args)
+      elif args.command == "init"         : cmd_init(args)
+      elif args.command == "log"          : cmd_log(args)
+      elif args.command == "ls-files"     : cmd_ls_files(args)
+      elif args.command == "ls-tree"      : cmd_ls_tree(args)
+      elif args.command == "merge"        : cmd_merge(args)
+      elif args.command == "rebase"       : cmd_rebase(args)
+      elif args.command == "rev-parse"    : cmd_rev_parse(args)
+      elif args.command == "rm"           : cmd_rm(args)
+      elif args.command == "show-ref"     : cmd_show_ref(args)
+      elif args.command == "tag"          : cmd_tag(args)
 #+END_SRC
 
 * Creating repositories: init
@@ -1953,7 +1961,7 @@ arguments to its interface.
       print (object_find(repo, args.name, fmt, follow=True))
 #+END_SRC
 
-* The staging area and the index file
+* The staging area and the index file (part 1: reading)
 
 # Creating commits /could/ just have been a matter of creating a bunch
 # of new tree objects (not just one, remember they're recursive), a
@@ -2196,6 +2204,221 @@ If you run ls-tree, you'll notice that on a “clean” worktree (an
 unmodified checkout of HEAD), it lists all files on HEAD.  The index
 is not a delta (a list of differences) from the HEAD commit, but
 starts as a copy of it, in a different format.
+
+** The check-ignore command
+:PROPERTIES:
+:CUSTOM_ID: check-ignore
+:END:
+
+We want to write =status=, but =status= needs to know about ignore
+rules, that are stored in the various =.gitignore= files.  So we first
+need to add some rudimentary support for ignore files in =wyag=.
+We'll expose this support as the =check-ignore= command, which takes a
+list of paths and outputs back those of those paths that should be
+ignored.
+
+Again, the command parser is trivial :
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argsp = argsubparsers.add_parser("check-ignore", help = "Check path(s) against ignore rules.")
+  argsp.add_argument("path", nargs="+", help="Paths to check")
+#+END_src
+
+And the function is just as simple:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  def cmd_check_ignore(args):
+    repo = repo_find()
+    rules = gitignore_read(repo)
+    for path in args.path:
+        if check_ignore(rules, path):
+          print(path)
+#+END_src
+
+We'll begin by writing a reader for rules in ignore files.  The syntax
+of those rules is quite simple: each line in an ignore file is an
+exclusion pattern, files that match this pattern are ignored by
+=status=, =add= and so on.  There are three special cases:
+
+ 1. Lines that begin with an exclamation mark =!= /negate/ the pattern
+    (files that match this pattern are /included/, even if other
+    patterns would exclude them)
+ 2. Lines that begin with a dash =#= are comments, and are ignored.
+ 2. A backslash =\= at the beginning of
+
+First, a parser for a single pattern. This parser returns a pair: the
+pattern itself, and a boolean to indicate if the pattern should
+/exclude/ matching files (=True=) or include them back (=False=).  In
+other words, =False= if the pattern did start with =!=, =True=
+otherwise.
+
+#+begin_src python :tangle libwyag.py
+  def gitignore_parse1(raw):
+      raw = raw.strip() # Remove leading/trailing spaces
+
+      if not raw or raw[0] == "#":
+          return None
+      elif raw[0] == "!":
+          return (raw[1:], False)
+      elif raw[0] == "\\":
+          return (raw[1:], True)
+      else:
+          return (raw, True)
+#+end_src
+
+Parsing a file is just collecting all rules in that file.  Notice we
+don't parse a file, but a list of lines: that's because we'll need to
+read rules from git blobs as well, and not just regular files.
+
+#+begin_src python :tangle libwyag.py
+  def gitignore_parse(lines):
+      ret = list()
+
+      for line in lines:
+          parsed = gitignore_parse1(line)
+          if parsed:
+              ret.append(parsed)
+
+      return ret
+#+end_src
+
+Last thing we need to do is collect the various ignore files.  They
+come in two kinds:
+
+ - Some of these files *live in the index*: they're the various
+   =gitignore= files.  Emphasis on the plural; although there's
+   usually only one such file, at the root, there can be one in each
+   directory, and it applies to this directory and its subdirectories.
+   I call those “scoped”, because they only apply to paths under their
+   directory.
+ - The others live *outside the index*.  They're the global ignore
+   file (usually in =~/.config/git/ignore=) and the
+   repository-specific =.git/info/exclude=.  I call those “absolute”
+
+Again, a class to hold that: a list of absolute rules, a dict (a
+hashmap) of relative rules.  The keys to this hashmap are
+*directories*, relative to the root of a worktree.
+
+#+begin_src python :tangle libwyag.py
+  class GitIgnore(object):
+      absolute = None
+      scoped = None
+
+      def __init__(self, absolute, scoped):
+          self.absolute = absolute
+          self.scoped = scoped
+#+end_src
+
+#+begin_src python :tangle libwyag.py
+  def gitignore_read(repo):
+      ret = GitIgnore(absolute=list(), scoped=dict())
+
+      # Local configuration in .git/info/exclude
+      repo_file = os.path.join(repo.gitdir, "info/exclude")
+      if os.path.exists(repo_file):
+          with open(repo_file, "r") as f:
+              ret.absolute.append(gitignore_parse(f.readlines()))
+
+      # Global configuration
+      if "XDG_CONFIG_HOME" in os.environ:
+          config_home = os.environ["XDG_CONFIG_HOME"]
+      else:
+          config_home = os.path.expanduser("~/.config")
+      global_file = os.path.join(config_home, "git/ignore")
+
+      if os.path.exists(global_file):
+          with open(global_file, "r") as f:
+              ret.absolute.append(gitignore_parse(f.readlines()))
+
+      # .gitignore files in the index
+      index = index_read(os.path.join(repo.gitdir, 'index'))
+
+      for entry in index.entries:
+          name = entry.name.decode("utf8")
+          if name == ".gitignore" or name.endswith("/.gitignore"):
+              # abs_name = os.path.join(repo.worktree, name)
+              dir_name = os.path.dirname(name)
+              sha = format(entry.object_hash, "040x")
+              contents = object_read(repo, sha)
+              lines = contents.blobdata.decode("utf8").splitlines()
+              ret.scoped[dir_name] = gitignore_parse(lines)
+      return ret
+#+end_src
+
+We're almost there.  To tie everything together, we need the
+=check_ignore= function that matches a path, relative to the root of a
+worktree, against a set of rules.  This is how this function will
+work:
+
+ - It will first try to match this path against the *scoped* rules.
+   It will do this from the deepest parent of the path to the
+   farthest.  That is, if the path is
+   =src/support/w32/legacy/sound.c~=, it will first look for rules in
+   =src/support/w32/legacy/.gitignore=, then
+   =src/support/w32/.gitignore=, and so on up to simply =.gitignore"=.
+ - If nothing matches, it will continue with the *absolute* rules.
+
+We write three small support functions.  One to match a path against a
+set of rules, and return the result of the last matching rule.  Notice
+how it's not a real boolean functions, since it has *three* possible
+return values: =True=, =False= but also =None=.  It returns None if
+nothing matched, so the caller knows it should continue trying with
+more general ignore files (eg, go one directory level up).
+
+#+begin_src python :tangle libwyag.py
+  def check_ignore1(rules, path):
+      result = None
+      for (pattern, value) in rules:
+          if fnmatch(path, pattern):
+              result = value
+      return result
+#+end_src
+
+A function to match against the dictionary of *scoped* rules (the
+various =.gitignore= files).  It just starts at the path's directory
+then moves up to the parent directory, recursively, until it has
+tested root.
+
+#+begin_src python :tangle libwyag.py
+  def check_ignore_scoped(rules, path):
+      parent = os.path.dirname(path)
+      while True:
+          if parent in rules:
+              result = check_ignore1(rules[parent], path)
+              if result != None:
+                  return result
+          if parent == "":
+              break
+          parent = os.path.dirname(parent)
+      return None
+#+end_src
+
+A much simpler function to match against the list of absolute rules.
+Notice that the order we push those rules to the list matters (we
+/did/ read the repository rules before the global ones!)
+
+#+begin_src python :tangle libwyag.py
+  def check_ignore_absolute(rules, path):
+      parent = os.path.dirname(path)
+      for ruleset in rules:
+          result = check_ignore1(ruleset, path)
+          if result != None:
+              return result
+      return False # This is a reasonable default at this point.
+#+end_src
+
+And finally, a function to bind them all:
+
+#+begin_src python :tangle libwyag.py
+  def check_ignore(rules, path):
+      result = check_ignore_scoped(rules.scoped, path)
+      if result != None:
+          return result
+
+      return check_ignore_absolute(rules.absolute, path)
+#+end_src
+
+* Staging area and index, part 2: staging and committing
 
 ** Writing the index
 
