@@ -18,13 +18,16 @@ write-yourself-a-git.html: write-yourself-a-git.org wyag libwyag.py
 wyag libwyag.py: write-yourself-a-git.org
 	emacs --batch write-yourself-a-git.org -f org-babel-tangle
 
+wyag.zip: wyag libwyag.py LICENSE
+	zip -r wyag.zip wyag libwyag.py LICENSE
+
 clean:
-	rm -f wyag libwyag.py write-yourself-a-git.html .last_push
+	rm -f wyag libwyag.py write-yourself-a-git.html .last_push wyag.zip
 
 test: wyag libwyag.py
 	./wyag-tests.sh
 
-.last_push: write-yourself-a-git.html
+.last_push: wyag.zip write-yourself-a-git.html
 	 scp -r write-yourself-a-git.html k9.thb.lt\:/var/www/wyag.thb.lt/index.html; \
-   scp -r lib/org-html-themes/src k9.thb.lt:/var/www/wyag.thb.lt/; \
+   scp -r wyag.zip lib/org-html-themes/src k9.thb.lt:/var/www/wyag.thb.lt/; \
    touch .last_push
