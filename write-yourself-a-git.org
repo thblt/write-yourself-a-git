@@ -2216,7 +2216,14 @@ more complexity in =status=!
           , datetime.fromtimestamp(e.mtime[0])
           , e.mtime[0]))
         print("  device: {}, inode: {}".format(e.dev, e.ino))
-        print("  user: {} ({})  group: {} ({})".format(pwd.getpwuid(e.uid).pw_name, e.uid, grp.getgrgid(e.gid).gr_name, e.gid))
+        print("  user: {} ({})  group: {} ({})".format(
+          pwd.getpwuid(e.uid).pw_name,
+          e.uid,
+          grp.getgrgid(e.gid).gr_name,
+          e.gid))
+        print("  flags: stage={} assume_valid={}".format(
+          e.flag_stage,
+          e.flag_assume_valid))
 #+END_SRC
 
 If you run ls-tree, you'll notice that on a “clean” worktree (an
