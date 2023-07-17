@@ -15,6 +15,15 @@ write-yourself-a-git.html: write-yourself-a-git.org wyag libwyag.py
 		--eval "(setq org-html-htmlize-output-type 'css)" \
     -f org-html-export-to-html
 
+write-yourself-a-git.pdf: write-yourself-a-git.org wyag libwyag.py
+	emacs --batch write-yourself-a-git.org \
+    --eval "(add-to-list 'load-path (expand-file-name \"./lib/htmlize\"))" \
+    --eval "(setq org-babel-inline-result-wrap \"%s\")" \
+    --eval "(setq org-confirm-babel-evaluate nil)" \
+    --eval "(setq python-indent-guess-indent-offset nil)" \
+    --eval "(setq org-export-with-broken-links t)" \
+    -f org-latex-export-to-pdf
+
 wyag libwyag.py: write-yourself-a-git.org
 	emacs --batch write-yourself-a-git.org -f org-babel-tangle
 
