@@ -2655,45 +2655,14 @@ ref to a commit).
 :CUSTOM_ID: feedback
 :END:
 
-This page has no comment system.  To report issues or just give
-feedback, you may use:
+This page has no comment system :) I can be reached by e-mail at
+[[mailto:thibault@thb.lt][thibault@thb.lt]].  I can also be found [[https://toad.social/@thblt][on Mastodon as
+@thblt@toad.social]] and [[https://twitter.com/ThbPlg][on Twitter as @ThbPlg]], and on IRC (sometimes)
+as =thblt= on Libera.
 
-- Github :: If you have a Github account, you can [[https://github.com/thblt/write-yourself-a-git/issues/new][create an issue]],
-            either to report a problem or a bug, or just for) general
-            feedback :
-
-- E-mail :: If you don't have/want a Github account, you can send me
-            an e-mail at [[mailto:thibault@thb.lt][thibault@thb.lt]].
-
-- Pull requests :: are accepted (and welcome!) by e-mail or on
-                   Github.  Before you start making any changes,
-                   please read the next section.
-
-- IRC :: I'm thblt on Libera, feel free to message me!
-
-# - Reddit :: I also follow informal discussions on Reddit.  This
-#             article was shared on the Git and Python subreddits:
-#             [[https://reddit.com][/r/git discussion thread]], [[https://reddit.com][/r/python discussion thread]].
-            # @TODO Update with the actual Reddit link.
-
-** Contributing
-:PROPERTIES:
-:CUSTOM_ID: contributing
-:END:
-
-If you want to contribute changes or improvements to this article or
-the wyag program, library and/or test suite, please read the
-following before you start working.
-
- - Do /not/ make changes to =wyag= or =libwyag.py=.  These files
-   are extracted ("tangled") from =write-yourself-a-git.org= and are
-   included in the repository as a convenience.  Instead, search the
-   code blocks corresponding to the changes you want to make and
-   update them.
-
- - The source file for /both/ the article and the program is
-   =write-yourself-a-git.org=.  Its format may seem unusual, but it's
-   pretty simple and not that far from markdown.
+The source for this article is hosted [[https://github.com/thblt/write-yourself-a-git][on Github]].  Issue reports and
+pull requests are welcome, either directly on GitHub or through e-mail
+if you prefer.
 
 ** Release information
 
