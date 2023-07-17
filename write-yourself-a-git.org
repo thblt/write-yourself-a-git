@@ -249,6 +249,22 @@ or merge them all in a single line)
    import configparser
    #+END_SRC
 
+ - We'll be doing some date/time manipulation:
+
+   #+BEGIN_SRC python :tangle libwyag.py
+     from datetime import datetime
+   #+END_SRC
+
+ - We'll need, just once, to read the users/group database on Unix
+   (=grp= is for groups, =pwd= for users).  This is because git saves
+   the numerical owner/group ID of files, and we'll want to display
+   that nicely (as text):
+
+   #+BEGIN_SRC python :tangle libwyag.py
+     import grp, pwd
+   #+END_SRC
+
+
  - Git uses the SHA-1 function quite extensively.  In Python, it's in [[https://docs.python.org/3/library/hashlib.html][hashlib]].
 
    #+BEGIN_SRC python :tangle libwyag.py
@@ -2151,8 +2167,6 @@ more complexity in =status=!
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser("ls-files", help = "List all the stage files")
   argsp.add_argument("--verbose", action="store_true", help="Show everything.")
-  from datetime import datetime # @FIXME
-  import grp, pwd
 
   def cmd_ls_files(args):
     repo = repo_find()
