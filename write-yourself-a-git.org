@@ -99,6 +99,7 @@ More precisely, we'll implement:
     "rev-parse"
     "rm"
     "show-ref"
+    "status"
     "tag"))
 #+end_src
 
@@ -355,6 +356,7 @@ executing the actual command.
       elif args.command == "rev-parse"    : cmd_rev_parse(args)
       elif args.command == "rm"           : cmd_rm(args)
       elif args.command == "show-ref"     : cmd_show_ref(args)
+      elif args.command == "status"       : cmd_status(args)
       elif args.command == "tag"          : cmd_tag(args)
 #+END_SRC
 
@@ -2444,6 +2446,106 @@ And finally, a function to bind them all:
       return check_ignore_absolute(rules.absolute, path)
 #+end_src
 
+** The status command
+
+=status= is more complex than =ls-files=, because it needs to compare
+the index with the actual filesystem.  You call =git status= to know
+which files were added, removed or modified since the last commit, and
+which of these changes are actually staged, and will make it to the
+next commit.  So =status= actually compares the =HEAD= with the
+staging area, and the staging area with the worktree.  This is what
+the output of =git status= looks like:
+
+#+begin_example
+On branch master
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   write-yourself-a-git.org
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   write-yourself-a-git.org
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	org-html-themes/
+	wl-copy
+#+end_example
+
+We'll implement =status= in three parts: first the active branch or
+“detached HEAD”, then the difference between the index and the
+worktree (“Changes not staged for commit”), then the difference
+between HEAD and the index (“Changes to be committed”).  Because this
+is a bit heavy, we leave the public interface and the bridge function
+[[#status-public-interface][to the very end]].
+
+The public interface is dead simple, our status will take no argument:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  argsp = argsubparsers.add_parser("status", help = "Show the working tree status.")
+#+END_src
+
+And the bridge function just calls the three component functions in order:
+
+
+The public interface is dead simple, our status will take no argument:
+
+#+BEGIN_SRC python :tangle libwyag.py
+  def cmd_status(_):
+      repo = repo_find()
+
+      cmd_status_branch(repo)
+      print()
+
+      cmd_status_head_index(repo)
+      print()
+
+      ignore = gitignore_read(repo)
+      cmd_status_index_worktree(repo, ignore)
+#+END_src
+
+*** Finding the active branch
+
+First we need to know if we're on a branch, and if so which one.  We
+do this by just looking at =.git/HEAD=.  It should contain either an
+hexadecimal ID (a ref to a commit, in detached HEAD state), or an
+indirect reference to something in =refs/heads/=: the active branch.
+We either return its name, or =False=.
+
+#+begin_src python :tangle libwyag.py
+  def branch_get_active(repo):
+      with open(repo_file(repo, "HEAD"), "r") as f:
+          head = f.read()
+
+      if head.startswith("ref: refs/heads/"):
+          return(head[16:-1])
+      else:
+          return False
+#+end_src
+
+Based on this, we can write the first of the three =cmd_status_*=
+functions the bridge calls:
+
+#+begin_src python :tangle libwyag.py
+  def cmd_status_branch(repo):
+      branch = branch_get_active(repo)
+      if branch:
+          print("On branch {}.".format(branch))
+      else:
+          print("HEAD detached at", object_find(repo, "HEAD"))
+#+end_src
+
+*** Finding changes between HEAD and index
+
+*** Finding changes between index and worktree
+
+*** Wrapping it all together: status
+:PROPERTIES:
+:CUSTOM_ID: status-public-interface
+:END:
+
 * Staging area and index, part 2: staging and committing
 
 ** Writing the index
@@ -2607,34 +2709,6 @@ PATH is one or more file(s) to stage.
     repo = repo_find()
     add(repo, args.path)
 #+END_src
-
-** The status command :noexport:
-
-=status= is more complex than =ls-files=, because it needs to compare
-the index with the actual filesystem.  You call =git status= to know
-which files were added, removed or modified since the last commit, and
-which of these changes are actually staged, and will make it to the
-next commit.  So =status= actually compares the =HEAD= with the
-staging area, and the staging area with the worktree.  This is what
-the output of =status= looks like:
-
-#+begin_example
-On branch master
-
-Changes to be committed:
-  (use "git restore --staged <file>..." to unstage)
-	modified:   write-yourself-a-git.org
-
-Changes not staged for commit:
-  (use "git add <file>..." to update what will be committed)
-  (use "git restore <file>..." to discard changes in working directory)
-	modified:   write-yourself-a-git.org
-
-Untracked files:
-  (use "git add <file>..." to include in what will be committed)
-	org-html-themes/
-	wl-copy
-#+end_example
 
 * Creating commits :noexport:
 
