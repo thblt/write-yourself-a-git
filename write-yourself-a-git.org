@@ -1963,6 +1963,7 @@ arguments to its interface.
 
 * The staging area and the index file (part 1: reading)
 
+** What's the index file?
 # Creating commits /could/ just have been a matter of creating a bunch
 # of new tree objects (not just one, remember they're recursive), a
 # commit object pointing at the root tree object, and updating =HEAD= to
@@ -1973,41 +1974,50 @@ arguments to its interface.
 This final step will bring us to /prepare/ commits (creating them is
 for the next section!)
 
-You probably know that to commit in Git, you first "stage" some
-changes, using =git add= and =git rm=, /then/ you commit them.  It
-would seem natural to use a commit-like object to represent the
-staging area, but Git goes a completely different way, and uses a
-completely different mechanism, in the form of the index file.  The
-**index file** feels a bit like a tree object: it associates paths to
-blobs, and so on.
+You probably know that to commit in Git, you first “stage” some
+changes, using =git add= and =git rm=, and only /then/ do you commit
+them.  This intermediate stage between the last and the next commit is
+called the *staging area*.
 
-#+begin_note
-  **The staging area**
+It would seem natural to use a commit or tree object to represent the
+staging area, but Git actually and uses a completely different
+mechanism, in the form of what it calls the *index file*.
 
-  The contents of the index file are called the *staging area*.  The
-  staging area is not the same as the worktree, because git lets you
-  stage (with =git add -i=) "chunks", that is, only a /part/ of
-  changes made to a file.  The staging area may thus be different from
-  /both/ HEAD and the worktree.
+After a commit, the index file is a sort of copy of that commit: it
+holds the same path/blob association than the corresponding tree.  But
+it also holds extra information about files in the worktree, like
+their creation/modification time, so =git status= doesn't usually need
+to actually compare all files: it just checks that their modification
+time is the same as the one stored in the index file, and only if it
+isn't does it perform an actual comparison.
 
-  If it's unclear, imagine you've modified two unrelated functions
-  from a single source file.  You may want to turn your two changes
-  into two different commits.  From a diff, you'd stage the first
-  change only, commit it, then stage the rest of the changes before
-  committing them in turn.
-#+end_note
+You can thus consider the index file as a three-way association list:
+not only paths with blobs, but also paths with actual filesystem
+entries.
 
-#+begin_note
-  **Why not just another tree?**
+Another important characteristic of the *index file* is that unlike a
+tree, it can represent inconsistent states, like a merge conflict,
+whereas a tree is always a complete, unambiguous representation.
 
-  I believe there are two reasons why the index file isn't just
-  another tree object.  The first reason is anecdotal: performance.
-  The index is uncompressed, and stores data in raw form.  The most
-  important reason, thus, is that a tree is always a complete,
-  unambiguous representation, whereas the index needs to also
-  represent conflicts (like merge conflicts, when automatic merge
-  failed).  Strictly speaking, indexes are a superset of trees.
-#+end_note
+When you commit, what git actually does is turn the index file into a
+new tree object.  To summarize:
+
+ 1. When the repository is “clean”, the index file holds the exact same
+    contents as the HEAD commit, plus metadata about the corresponding filesystem entries.  For instance, it may contain something like:
+
+    #+begin_quote
+    There's a file called =src/disp.c= whose contents are blob
+    797441c76e59e28794458b39b0f1eff4c85f4fa0.  The real =src/disp.c=
+    file, in the worktree, was created on 2023-07-15
+    15:28:29.168572151, and last modified 2023-07-15
+    15:28:29.1689427709.  It is stored on device 65026, inode 8922881.
+    #+end_quote
+
+ 2. When you =git add= or =git rm=, the index file is modified accordingly.  In the example above, if you modify =src/disp.c=, and =add= your changes, the index file will be updated with a new blob ID (the blob itself will also be created in the process, of course), and the various file metadata will be updated as well so =git status= knows when not to compare file contents.
+
+ 3. When you =git commit= those changes, a new tree is produced from
+    the index file, a new commit object is generated with that tree,
+    branches are updated and we're done.
 
 ** Parsing the index
 
@@ -2025,11 +2035,11 @@ The first thing we need to represent is a single entry.  It actually
 holds quite a lot of stuff, I'm leaving the details in comments.
 What's worth noticing is that an entry stores *both* the SHA1 of the
 associated glob in git's objects store and a ton of metadata about the
-actual file on the actual filesystem.  This is because =git/wyag
-status= will need to determine which files in the index were modified:
-it is much more efficient to begin by checking the last-modified
-timestamp and comparing it with a known values, before comparing
-actual files.
+actual file on the actual filesystem.  Again, this is because
+=git/wyag status= will need to determine which files in the index were
+modified: it is much more efficient to begin by checking the
+last-modified timestamp and comparing it with a known values, before
+comparing actual files.
 
 #+begin_src python :tangle libwyag.py
   class GitIndexEntry (object):
@@ -2066,13 +2076,7 @@ actual files.
 The index file is a binary file, likely for performance reasons.  The
 format is reasonably simple, though.  It begins with a header with the
 =DIRC= magic bytes, a version number and the total number of entries
-in that index file. The rest of the file is a series of entries.  An
-entry begins with a set of fixed-length data, followed by a
-variable-length name.  It begins with the usual file metadata:
-creation and modification time, mode, owner and group id, size, and an
-object hash of course) followed by a variable-length name, terminated
-by a NULL byte (0x00), that's the path for that file).  The code is
-quite straightforward:
+in that index file.  We create the =GitIndex= object to hold them:
 
 #+BEGIN_SRC python :tangle libwyag.py
   class GitIndex (object):
@@ -2084,11 +2088,23 @@ quite straightforward:
       def __init__(self, version, entries):
           self.version = version
           self.entries = entries
-
 #+END_SRC
 
-#+BEGIN_SRC python :tangle libwyag.py
+And a reader to read index files into those objects.  After reading
+the 12-bytes header, we just parse entries in the order they appear.
+An entry begins with a set of fixed-length data, followed by a
+variable-length name.  It begins with the usual file metadata:
+creation and modification time, mode, owner and group id, size, and an
+object hash of course, followed by a variable-length name, terminated
+by a NULL byte (0x00) (that's the path for that file).
 
+The code is quite straightforward, but as it's reading a binary
+format, it feels more messy than what we did so far.  We use the
+=int.from_bytes(bytes, endianness)= a lot to read raw bytes into an
+integer, and just a few bitwise operations to separate data
+that share the same byte.
+
+#+BEGIN_SRC python :tangle libwyag.py
   def index_read(file):
       with open(file, 'rb') as f:
           raw = f.read()
@@ -2126,17 +2142,20 @@ quite straightforward:
           flag_assume_valid = (flags & 0b1000000000000000) != 0
           flag_extended = (flags & 0b0100000000000000) != 0
           assert not flag_extended
-          flag_stage =  flags & 0b0011000000000000 # ???
+          flag_stage =  flags & 0b0011000000000000
           name_length = flags & 0b0000111111111111
 
-          null_idx = content.find(b'\x00', idx+62) # TODO
+          null_idx = content.find(b'\x00', idx+62)
           name = content[idx+62: null_idx]
 
-          if len(name) > 0xFFF:
-              assert name_length == 0xFFF
-          else:
+          if len(name) < 0xFFF:
               assert name_length == len(name)
+          else:
+              assert name_length == 0xFFF
 
+          # Data is padded on multiple of eight bytes for pointer
+          # alignment, we skip as many bytes as we need for the next
+          # read to start at the right position.
           idx = null_idx + 1
           idx = 8 * ceil(idx / 8)
 
