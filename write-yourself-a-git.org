@@ -2105,8 +2105,8 @@ integer, and just a few bitwise operations to separate data
 that share the same byte.
 
 #+BEGIN_SRC python :tangle libwyag.py
-  def index_read(file):
-      with open(file, 'rb') as f:
+  def index_read(repo):
+      with open(repo_file(repo, "index"), 'rb') as f:
           raw = f.read()
 
       header = raw[:12]
@@ -2197,7 +2197,7 @@ more complexity in =status=!
 
   def cmd_ls_files(args):
     repo = repo_find()
-    index = index_read(os.path.join(repo.gitdir, 'index'))
+    index = index_read(repo)
     if args.verbose:
       print("Index file format v{}, containing {} entries.".format(index.version, len(index.entries)))
 
@@ -2357,7 +2357,7 @@ hashmap) of relative rules.  The keys to this hashmap are
               ret.absolute.append(gitignore_parse(f.readlines()))
 
       # .gitignore files in the index
-      index = index_read(os.path.join(repo.gitdir, 'index'))
+      index = index_read(repo)
 
       for entry in index.entries:
           name = entry.name.decode("utf8")
@@ -2542,8 +2542,7 @@ index (both those arguments are for the use of =add=).
 #+BEGIN_SRC python :tangle libwyag.py
   def rm(repo, paths, delete=True, skip_missing=False):
     # Find and read the index
-    index_path = os.path.join(repo.gitdir, 'index')
-    index = index_read(index_path)
+    index = index_read(repo)
 
     worktree = repo.worktree + os.sep
 
