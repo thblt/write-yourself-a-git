@@ -164,8 +164,9 @@ We'll split the code into two files:
 Now, every software project starts with a boatload of boilerplate, so let's
 get this over with.
 
-We'll begin by creating the binary.  Create a new file called =wyag= in
-your text editor, and copy the following few lines:
+We'll begin by creating the (very short) executable.  Create a new
+file called =wyag= in your text editor, and copy the following few
+lines:
 
 #+BEGIN_SRC python :tangle wyag :tangle-mode (identity #o755)
   #!/usr/bin/env python3
