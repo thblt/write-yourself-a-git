@@ -1965,6 +1965,14 @@ arguments to its interface.
 
 * The staging area and the index file (part 1: reading)
 
+#+begin_warning
+  *Work in progress*
+
+  I'm currently (July of 2023) working on finishing the staging area
+  sections.  Everything below this point is a work in progress, and
+  may be broken.
+#+end_warning
+
 ** What's the index file?
 # Creating commits /could/ just have been a matter of creating a bunch
 # of new tree objects (not just one, remember they're recursive), a
