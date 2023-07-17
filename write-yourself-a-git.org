@@ -1526,7 +1526,10 @@ And a function to do the actual work:
 #+END_SRC
 
 * Refs, tags and branches
-** What's a ref?
+** What a ref is, and the show-ref command
+:PROPERTIES:
+:CUSTOM_ID: cmd-show-ref
+:END:
 
 Git references, or refs, are probably the most simple type of things
 git holds.  They live in subdirectories of =.git/refs=, and are text
@@ -2243,7 +2246,7 @@ starts as a copy of it, in a different format.
 
 ** The check-ignore command
 :PROPERTIES:
-:CUSTOM_ID: check-ignore
+:CUSTOM_ID: cmd-check-ignore
 :END:
 
 We want to write =status=, but =status= needs to know about ignore
@@ -2455,6 +2458,9 @@ And finally, a function to bind them all:
 #+end_src
 
 ** The status command
+:PROPERTIES:
+:CUSTOM_ID: cmd-status
+:END:
 
 =status= is more complex than =ls-files=, because it needs to compare
 the index with the actual filesystem.  You call =git status= to know
