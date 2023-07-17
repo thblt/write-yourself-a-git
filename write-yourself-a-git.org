@@ -2623,13 +2623,13 @@ The easiest change we can do to an index is to remove an entry from
 it, which mean that the next commit *won't include* this file.  This
 is the =git rm= command.
 
-#+BEGIN_warning
+#+BEGIN_danger
   =git rm= is *destructive*, and so is =wyag rm=.  The command not
   only modifies the index files, it also removes the file from the
-  worktree.  In other words, wyag rm *will destroy files from your
-  filesystem*.  This implementation tries to be tread carefully, but
-  proceed at your own risks
-#+END_warning
+  worktree.  In other words, wyag rm *will really remove files*.
+  This implementation tries to be be careful in doing so, but proceed
+  at your own risks.
+#+END_danger
 
 =rm= takes a single argument, a list of paths to remove:
 
