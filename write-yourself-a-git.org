@@ -28,6 +28,12 @@
 
 * Introduction
 
+#+begin_note
+  (July 2023) I'm resuming work on this article.  Sections 1 to 7 are
+  done and in good state, the code in sections 8 works but the text
+  needs work, section 9 is still incomplete, and should be done this month. --- Thibault
+#+end_note
+
 This article is an attempt at explaining the [[https://git-scm.com/][Git version control
 system]] from the bottom up, that is, starting at the most fundamental
 level moving up from there.  This does not sound too easy, and has
@@ -1966,14 +1972,6 @@ arguments to its interface.
 
 * The staging area and the index file (part 1: reading)
 
-#+begin_warning
-  *Work in progress*
-
-  I'm currently (July of 2023) working on finishing the staging area
-  sections.  Everything below this point is a work in progress, and
-  may be broken.
-#+end_warning
-
 ** What's the index file?
 # Creating commits /could/ just have been a matter of creating a bunch
 # of new tree objects (not just one, remember they're recursive), a
@@ -2951,10 +2949,16 @@ remember trees, they're a recursive structure: a tree represents a
 single directory, and links to other trees for subdirectories.  The
 index is flat: each blob is associated to a full path.
 
-** The commit command :noexport:
+** The commit command
 :PROPERTIES:
 :CUSTOM_ID: cmd-commit
 :END:
+
+#+begin_warning
+  *Work in progress*
+
+  Commit is coming soon! (July 2023)
+#+end_warning
 
 To commit a set of changes, we need to turn the current index into a
 tree object, generate and store the corresponding commit object, and
