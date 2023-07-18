@@ -2714,11 +2714,23 @@ to reflect the changes in the real file's metadata.
 
 * Staging area and index, part 2: staging and committing
 
+Let's.  Create.  Commits.
+
+OK, we have almost everything we need to *create* commits, except for three things:
+
+ 1. We need to be able to write a modified index back, since we commit
+    /from the index/, and the point of creating commits is that
+    they're different from the previous commit, right?
+ 2. We need to have commands to modify the index: that's =add= and =rm=.
+ 3. And obviously, we'll need the =commit= function and its associated
+    =wyag commit= command.
+
 ** Writing the index
 
-To be able to manipulate the staging area, we need to be able to write
-the index as well.  This is a bit tedious, but the code should be
-straightforward.  Again, the gory details are in comments.
+So, let's start by writing the index back.  Roughly, we're just
+serializing everything back to binary.  This is a bit tedious, but the
+code should be straightforward.  I'm leaving the gory details for the
+comments.
 
 #+begin_src python :tangle libwyag.py
   def index_write(repo, index):
@@ -2732,6 +2744,9 @@ straightforward.  Again, the gory details are in comments.
           f.write(index.version.to_bytes(4, "big"))
           # Write the number of entries.
           f.write(len(index.entries).to_bytes(4, "big"))
+
+          # ENTRIES
+
           idx = 0
           for e in index.entries:
               f.write(e.ctime[0].to_bytes(4, "big"))
@@ -2760,14 +2775,17 @@ straightforward.  Again, the gory details are in comments.
               else:
                   name_length = len(name_bytes)
 
+              # We merge back three pieces of data (two flags and the
+              # length of the name) on the same two bytes.
               f.write((flag_assume_valid | e.flag_stage | name_length).to_bytes(2, "big"))
 
+              # Write back the name, and a final 0x00.
               f.write(name_bytes)
               f.write((0).to_bytes(1, "big"))
 
               idx += 62 + len(name_bytes) + 1
 
-              # Padding
+              # Add padding if necessary.
               if idx % 8 != 0:
                   pad = 8 - (idx % 8)
                   f.write((0).to_bytes(pad, "big"))
@@ -2781,14 +2799,13 @@ straightforward.  Again, the gory details are in comments.
 
 The easiest change we can do to an index is to remove an entry from
 it, which mean that the next commit *won't include* this file.  This
-is the =git rm= command.
+is what the =git rm= command does.
 
 #+BEGIN_danger
   =git rm= is *destructive*, and so is =wyag rm=.  The command not
-  only modifies the index files, it also removes the file from the
-  worktree.  In other words, wyag rm *will really remove files*.
-  This implementation tries to be be careful in doing so, but proceed
-  at your own risks.
+  only modifies the index, it also removes file(s) from the worktree.
+  Unlike git, =wyag rm= doesn't care if the file it removes isn't
+  saved.  Proceed with caution.
 #+END_danger
 
 =rm= takes a single argument, a list of paths to remove:
@@ -2807,7 +2824,8 @@ repository and a list of paths, reads that repository index, and
 removes entries in the index that match this list.  The optional
 arguments control whether the function should actually delete the
 files, and whether it should abort if some paths aren't present on the
-index (both those arguments are for the use of =add=).
+index (both those arguments are for the use of =add=, they're not
+exposed in the =wyag rm= command).
 
 #+BEGIN_SRC python :tangle libwyag.py
   def rm(repo, paths, delete=True, skip_missing=False):
@@ -2927,6 +2945,12 @@ in the index's field.
 
 
 ** Turning indexes into trees                                     :noexport:
+
+The hard part of creating a commit is that we need to convert the
+index to a series of tree objects.  /A series/, because if you
+remember trees, they're a recursive structure: a tree represents a
+single directory, and links to other trees for subdirectories.  The
+index is flat: each blob is associated to a full path.
 
 ** The commit command :noexport:
 
