@@ -160,8 +160,42 @@ git rev-parse 8a617  >> ../file2
 cd ..
 cmp file1 file2
 
-step "rev-parse (wyag redirection tester)"
-#@TODO
+step "ls-files "
+cd left
+$wyag ls-files > ../file1
+cd ../right
+git ls-files > ../file2
+cd ..
+cmp file1 file2
+
+gitignore_prepare() {
+    mkdir -p a/b/c/
+    echo "!*.txt" > a/b/c/.gitignore
+    echo "*.txt" > a/b/.gitignore
+    echo "*.org" > a/.gitignore
+    git add -A
+}
+
+step "gitignore"
+cd left
+gitignore_prepare
+$wyag check-ignore a/b/c/hello.txt > ../file1
+$wyag check-ignore a/b/hello.txt >> ../file1
+$wyag check-ignore a/hello.org >> ../file1
+$wyag check-ignore hello.org >> ../file1
+cd ../right
+set +e # git will return with non-zero
+gitignore_prepare
+git check-ignore a/b/c/hello.txt > ../file2
+git check-ignore a/b/hello.txt >> ../file2
+git check-ignore a/hello.org >> ../file2
+git check-ignore hello.org >> ../file2
+set -e
+cd ..
+cmp file1 file2
+
+
+
 
 step THIS WAS A TRIUMPH
 step "I'M MAKING A NOTE HERE"
