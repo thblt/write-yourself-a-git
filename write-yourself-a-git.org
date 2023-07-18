@@ -742,15 +742,11 @@ implementing these functions for each object format.
 #+BEGIN_SRC python :tangle libwyag.py
 class GitObject (object):
 
-    repo = None
-
-    def __init__(self, repo, data=None):
-        self.repo=repo
-
+    def __init__(self, data=None):
         if data != None:
             self.deserialize(data)
 
-    def serialize(self):
+    def serialize(self, repo):
         """This function MUST be implemented by subclasses.
 
 It must read the object's contents from self.data, a byte string, and do
@@ -810,7 +806,7 @@ object's format.
               raise Exception("Unknown type {0} for object {1}".format(fmt.decode("ascii"), sha))
 
           # Call constructor and return object
-          return c(repo, raw[y+1:])
+          return c(raw[y+1:])
 #+END_SRC
 
 <<placeholder-object_find>> We haven't introduced the =object_find= function yet.  It's actually a
@@ -836,7 +832,7 @@ place.  This really shouldn't require much explanation, just notice
 that the hash is computed *after* the header is added.
 
 #+BEGIN_SRC python :tangle libwyag.py
-  def object_write(obj, actually_write=True):
+  def object_write(obj, repo=None):
       # Serialize object data
       data = obj.serialize()
       # Add header
@@ -844,14 +840,13 @@ that the hash is computed *after* the header is added.
       # Compute hash
       sha = hashlib.sha1(result).hexdigest()
 
-      if actually_write:
+      if repo:
           # Compute path
-          path=repo_file(obj.repo, "objects", sha[0:2], sha[2:], mkdir=actually_write)
+          path=repo_file(repo, "objects", sha[0:2], sha[2:], mkdir=True)
 
           with open(path, 'wb') as f:
               # Compress and write
               f.write(zlib.compress(result))
-
       return sha
 #+END_SRC
 
@@ -961,32 +956,32 @@ bridge function:
 #+BEGIN_SRC python :tangle libwyag.py
   def cmd_hash_object(args):
       if args.write:
-          repo = GitRepository(".")
+          repo = repo_find()
       else:
           repo = None
 
       with open(args.path, "rb") as fd:
-          sha = object_hash(fd, args.type.encode(), repo, args.write)
+          sha = object_hash(fd, args.type.encode(), repo)
           print(sha)
 #+END_SRC
 
 and the actual implementation.  The repo argument is optional, and the
-object isn't written if it is None.:
+object isn't written if it is None:
 
 #+BEGIN_SRC python :tangle libwyag.py
-def object_hash(fd, fmt, repo=None, actually_write=True):
-    data = fd.read()
+    def object_hash(fd, fmt, repo=None):
+        """ Hash object, writing it to repo if provided."""
+        data = fd.read()
 
-    # Choose constructor depending on
-    # object type found in header.
-    if   fmt==b'commit' : obj=GitCommit(repo, data)
-    elif fmt==b'tree'   : obj=GitTree(repo, data)
-    elif fmt==b'tag'    : obj=GitTag(repo, data)
-    elif fmt==b'blob'   : obj=GitBlob(repo, data)
-    else:
-        raise Exception("Unknown type %s!" % fmt)
+        # Choose constructor according to fmt argument
+        match fmt:
+            case b'commit' : obj=GitCommit(data)
+            case b'tree'   : obj=GitTree(data)
+            case b'tag'    : obj=GitTag(data)
+            case b'blob'   : obj=GitBlob(data)
+            case _: raise Exception("Unknown type %s!" % fmt)
 
-    return object_write(obj, actually_write)
+        return object_write(obj, repo)
 #+END_SRC
 
 ** What about packfiles?
@@ -1416,7 +1411,7 @@ Last but not least, we'll need a serializer:
       for i in obj.items:
           ret += i.mode
           ret += b' '
-          ret += i.path
+          ret += i.path.encode("utf8")
           ret += b'\x00'
           sha = int(i.sha, 16)
           ret += sha.to_bytes(20, byteorder="big")
@@ -1508,7 +1503,7 @@ A wrapper function:
       else:
           os.makedirs(args.path)
 
-      tree_checkout(repo, obj, os.path.realpath(args.path).encode())
+      tree_checkout(repo, obj, os.path.realpath(args.path))
 #+END_SRC
 
 And a function to do the actual work:
@@ -2179,19 +2174,19 @@ that share the same byte.
           idx = null_idx + 1
           idx = 8 * ceil(idx / 8)
 
-          entries.append( GitIndexEntry(ctime=ctime_s * 10**9 + ctime_ns,
-                                        mtime=mtime_s * 10**9 + mtime_ns,
-                                        dev=dev,
-                                        ino=ino,
-                                        mode_type=mode_type,
-                                        mode_perms=mode_perms,
-                                        uid=uid,
-                                        gid=gid,
-                                        fsize=fsize,
-                                        sha=sha,
-                                        flag_assume_valid=flag_assume_valid,
-                                        flag_stage=flag_stage,
-                                        name=name))
+          entries.append(GitIndexEntry(ctime=(ctime_s, ctime_ns),
+                                       mtime=(mtime_s,  mtime_ns),
+                                       dev=dev,
+                                       ino=ino,
+                                       mode_type=mode_type,
+                                       mode_perms=mode_perms,
+                                       uid=uid,
+                                       gid=gid,
+                                       fsize=fsize,
+                                       sha=sha,
+                                       flag_assume_valid=flag_assume_valid,
+                                       flag_stage=flag_stage,
+                                       name=name))
 
       return GitIndex(version=version, entries=entries)
 #+END_SRC
@@ -2228,15 +2223,11 @@ more complexity in =status=!
             0b1110: "git link" }[e.mode_type],
           e.mode_perms))
         print("  on blob: {}".format(e.sha))
-        ctime_s = e.ctime // 10**9
-        ctime_ns = e.ctime % 10**9
-        mtime_s = e.mtime // 10**9
-        mtime_ns = e.mtime % 10**9
         print("  created: {}.{}, modified: {}.{}".format(
-          datetime.fromtimestamp(ctime_s)
-          , ctime_ns
-          , datetime.fromtimestamp(mtime_s)
-          , mtime_ns))
+          datetime.fromtimestamp(e.ctime[0])
+          , e.ctime[1]
+          , datetime.fromtimestamp(e.mtime[0])
+          , e.mtime[1]))
         print("  device: {}, inode: {}".format(e.dev, e.ino))
         print("  user: {} ({})  group: {} ({})".format(
           pwd.getpwuid(e.uid).pw_name,
@@ -2612,14 +2603,13 @@ recursive, so the function itself is --- sorry about that :)
       index = index_read(repo)
 
       for entry in index.entries:
-          path = entry.name.decode("utf8")
-          if path in head:
-              if head[path] != entry.sha:
-                  print("  modified:", path)
-              del head[path] # Delete the key
+          if entry.name in head:
+              if head[entry.name] != entry.sha:
+                  print("  modified:", entry.name)
+              del head[entry.name] # Delete the key
 
           else:
-              print("  added:   ", path)
+              print("  added:   ", entry.name)
 
       # Keys still in HEAD are files that we haven't met in the index,
       # and thus have been deleted.
@@ -2638,8 +2628,8 @@ the index as well.  This is a bit tedious, but the code should be
 straightforward.  Again, the gory details are in comments.
 
 #+begin_src python :tangle libwyag.py
-  def index_write(index, file):
-      with open(file, "wb") as f:
+  def index_write(repo, index):
+      with open(repo_file(repo, "index"), "wb") as f:
 
           # HEADER
 
@@ -2667,26 +2657,26 @@ straightforward.  Again, the gory details are in comments.
 
               f.write(e.fsize.to_bytes(4, "big"))
               # @FIXME Convert back to int.
-              f.write(e.sha.to_bytes(20, "big"))
+              f.write(int(e.sha, 16).to_bytes(20, "big"))
 
               flag_assume_valid = 0x1 << 15 if e.flag_assume_valid else 0
 
-              if len(e.name) > 0xFFF:
+              name_bytes = e.name.encode("utf8")
+              if len(name_bytes) > 0xFFF:
                   name_length = 0xFFF
               else:
-                  name_length = len(e.name)
+                  name_length = len(name_bytes)
 
               f.write((flag_assume_valid | e.flag_stage | name_length).to_bytes(2, "big"))
 
-              # Name @FIXME Encode back
-              f.write(e.name)
+              f.write(name_bytes)
               f.write((0).to_bytes(1, "big"))
 
-              # Padding
-              idx += 62 + len(e.name) + 1
-              pad = 8 - (idx % 8)
+              idx += 62 + len(name_bytes) + 1
 
-              if pad > 0:
+              # Padding
+              if idx % 8 != 0:
+                  pad = 8 - (idx % 8)
                   f.write((0).to_bytes(pad, "big"))
                   idx += pad
 #+end_src
@@ -2746,8 +2736,7 @@ index (both those arguments are for the use of =add=).
     remove = list()
 
     for e in index.entries:
-      name = e.name.decode("utf8")
-      full_path = os.path.join(repo.worktree, name)
+      full_path = os.path.join(repo.worktree, e.name)
 
       if full_path in abspaths:
         remove.append(full_path)
@@ -2755,7 +2744,7 @@ index (both those arguments are for the use of =add=).
       else:
         kept_entries.append(e) # Preserve entry
 
-    if len(abspaths) > 0 and not ignore_missing:
+    if len(abspaths) > 0 and not skip_missing:
       raise Exception("Cannot remove paths not in the index: {}".format(abspaths))
 
     if delete:
@@ -2763,7 +2752,7 @@ index (both those arguments are for the use of =add=).
         os.unlink(path)
 
     index.entries = kept_entries
-    index_write(index, index_path)
+    index_write(repo, index)
 #+END_SRC
 
 And we can now delete files!
