@@ -2953,6 +2953,9 @@ single directory, and links to other trees for subdirectories.  The
 index is flat: each blob is associated to a full path.
 
 ** The commit command :noexport:
+:PROPERTIES:
+:CUSTOM_ID: cmd-commit
+:END:
 
 To commit a set of changes, we need to turn the current index into a
 tree object, generate and store the corresponding commit object, and
