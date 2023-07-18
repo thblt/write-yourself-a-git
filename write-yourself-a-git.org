@@ -2509,15 +2509,12 @@ The public interface is dead simple, our status will take no argument:
 #+BEGIN_SRC python :tangle libwyag.py
   def cmd_status(_):
       repo = repo_find()
+      index = index_read(repo)
 
       cmd_status_branch(repo)
+      cmd_status_head_index(repo, index)
       print()
-
-      cmd_status_head_index(repo)
-      print()
-
-      ignore = gitignore_read(repo)
-      cmd_status_index_worktree(repo, ignore)
+      cmd_status_index_worktree(repo, index)
 #+END_src
 
 *** Finding the active branch
@@ -2572,11 +2569,6 @@ recursive, so the function itself is --- sorry about that :)
     for leaf in tree.items:
         full_path = os.path.join(prefix, leaf.path)
 
-        # Modes that start with 0b1110 are git links, usually
-        # submodules.  We don't support those, so we crash early.
-        if leaf.mode.startswith(b"160"):
-            raise Exception("{} is a gitlink, probably a submodule.  wyag doesn't support these.".format(full_path))
-
         # We read the object to extract its type (this is uselessly
         # expensive: we could just open it as a file and read the
         # first few bytes)
@@ -2596,11 +2588,10 @@ recursive, so the function itself is --- sorry about that :)
 #+end_src
 
 #+begin_src python :tangle libwyag.py
-  def cmd_status_head_index(repo):
+  def cmd_status_head_index(repo, index):
       print("Changes to be committed:")
 
       head = tree_to_dict(repo, "HEAD")
-      index = index_read(repo)
 
       for entry in index.entries:
           if entry.name in head:
@@ -2618,6 +2609,107 @@ recursive, so the function itself is --- sorry about that :)
 #+end_src
 
 *** Finding changes between index and worktree
+
+#+begin_src python :tangle libwyag.py
+  def cmd_status_index_worktree(repo, index):
+      print("Changes not staged for commit:")
+
+      ignore = gitignore_read(repo)
+
+      gitdir_prefix = repo.gitdir + os.path.sep
+
+      all_files = list()
+
+      # We begin by walking the filesystem
+      for (root, _, files) in os.walk(repo.worktree, True):
+          if root==repo.gitdir or root.startswith(gitdir_prefix):
+              continue
+          for f in files:
+              full_path = os.path.join(root, f)
+              rel_path = os.path.relpath(full_path, repo.worktree)
+              all_files.append(rel_path)
+
+      # We now traverse the index, and compare real files with the cached
+      # versions.
+
+      for entry in index.entries:
+          full_path = os.path.join(repo.worktree, entry.name)
+          # That file *name* is in the index
+
+          if not os.path.exists(full_path):
+              print("  deleted: ", entry.name)
+          else:
+              stat = os.stat(full_path)
+
+              # Compare metadata
+              ctime_ns = entry.ctime[0] * 10**9 + entry.ctime[1]
+              mtime_ns = entry.mtime[0] * 10**9 + entry.mtime[1]
+              if (stat.st_ctime_ns != ctime_ns) or (stat.st_mtime_ns != mtime_ns):
+                  # If different, deep compare.
+                  with open(full_path, "rb") as fd:
+                      new_sha = object_hash(fd, b"blob", None)
+                      # If the hashes are the same, the files are actually the same.
+                      same = entry.sha == new_sha
+
+                      if not same:
+                          print("  modified:", entry.name)
+
+          if entry.name in all_files:
+              all_files.remove(entry.name)
+
+      print()
+      print("Untracked files:")
+
+      for f in all_files:
+          if not check_ignore(ignore, f):
+              print(" ", f)
+#+end_src
+
+Our status function is done.  It should output something like:
+
+#+begin_example
+$ wyag status
+On branch main.
+Changes to be committed:
+  added:    src/main.c
+
+Changes not staged for commit:
+  modified: build.py
+  deleted:  README.org
+
+Untracked files:
+  src/cli.c
+#+end_example
+
+The real =status= is a lot smarter: it can detect renames, for
+example, where ours cannot.  Another significant difference worth
+mentioning is that =git status= actually /writes/ the index back if a
+file metadata was modified, but not its content.  You can see it with
+ls-files:
+
+#+begin_example
+$ wyag ls-files --verbose
+Index file format v2, containing 1 entries.
+file
+  regular file with perms: 644
+  on blob: f2f279981ce01b095c42ee7162aadf60185c8f67
+  created: 2023-07-18 18:26:15.771460869, modified: 2023-07-18 18:26:15.771460869
+  device: 65026, inode: 10619317
+  user: thblt (1000)  group: users (100)
+  flags: stage=0 assume_valid=False
+$ touch file
+$ git status > /dev/null
+$ wyag ls-files --verbose
+Index file format v2, containing 1 entries.
+file
+  regular file with perms: 644
+  on blob: f2f279981ce01b095c42ee7162aadf60185c8f67
+  created: 2023-07-18 18:26:41.421743098, modified: 2023-07-18 18:26:41.421743098
+…
+#+end_example
+
+Notice how both timestamps, in the from the index file, were updated
+to reflect the changes in the real file's metadata.
 
 * Staging area and index, part 2: staging and committing
 
