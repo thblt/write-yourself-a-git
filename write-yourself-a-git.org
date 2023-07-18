@@ -844,9 +844,10 @@ that the hash is computed *after* the header is added.
           # Compute path
           path=repo_file(repo, "objects", sha[0:2], sha[2:], mkdir=True)
 
-          with open(path, 'wb') as f:
-              # Compress and write
-              f.write(zlib.compress(result))
+          if not os.path.exists(path):
+              with open(path, 'wb') as f:
+                  # Compress and write
+                  f.write(zlib.compress(result))
       return sha
 #+END_SRC
 
