@@ -2981,7 +2981,7 @@ The source for this article is hosted [[https://github.com/thblt/write-yourself-
 pull requests are welcome, either directly on GitHub or through e-mail
 if you prefer.
 
-** COMMENT Release information
+** Release information :noexport:
 
 #+begin_src emacs-lisp :exports results :results table
   (list
