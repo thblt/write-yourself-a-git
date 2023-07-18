@@ -3004,7 +3004,7 @@ if you prefer.
 ** License
 
 This document is part of wyag <[[https://wyag.thb.lt][https://wyag.thb.lt]]>.  Copyright (c)
-2018 Thibault Polge <[[mailto:thibault@thb.lt][thibault@thb.lt]]>.  All rights reserved
+2018--2023 Thibault Polge <[[mailto:thibault@thb.lt][thibault@thb.lt]]>.  All rights reserved
 
 Wyag is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by
