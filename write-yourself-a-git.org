@@ -2943,7 +2943,6 @@ in the index's field.
       index_write(repo, index)
 #+END_SRC
 
-
 ** Turning indexes into trees                                     :noexport:
 
 The hard part of creating a commit is that we need to convert the
@@ -2961,7 +2960,6 @@ To commit a set of changes, we need to turn the current index into a
 tree object, generate and store the corresponding commit object, and
 update the HEAD branch to the new commit (remember: a branch is just a
 ref to a commit).
-
 
 * Final words
 
