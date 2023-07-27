@@ -3315,9 +3315,9 @@ ref to a commit).
 #+end_src
 
 Before we get to the interesting details, we will need to read git's
-config to get the name of the default user, which we'll use as the
-author of commits.  We'll use the same =configparser= library we've
-used to read repo's config.
+config to get the name of the user, which we'll use as the author and
+committer.  We'll use the same =configparser= library we've used to
+read repo's config.
 
 #+begin_src python :tangle libwyag.py
   def gitconfig_read():
@@ -3345,76 +3345,103 @@ And just a simple function to grab, and format, the user identity:
 Now for the interesting part.  We first need to build a tree from the
 index.  This isn't hard, but notice that while the index is flat (it
 stores full paths for the whole worktree), a tree is a recursive
-structure.  What we do is start from the deepest directory, build a
-tree with its contents, write that tree to the repository, add a
-reference to that tree to its parent, and resume at upper levels until
-we hit home.  The /last/ tree we'll have built is the only one we'll
-need in the commit, since it's the root and references all others ---
-so this function will simply return its hash.
+structure.  What we do is
+
+ 1. Build a dictionary of directories.  Keys are full paths from
+    worktree root (like =src/=), values are list of =GitIndexEntry=
+    --- files in the directory.
+ 2. Traverse this list, going bottom-up, that is, from the deepest
+    directories up to root (depth doesn't really matter: we just want
+    to see each directory /before/ its parent.  To do that, we just
+    sort them by /full/ path length, from longest to shortest ---
+    parents are obviously always shorter).  As an example, imagine we
+    start at =assets/sprites/monsters/=
+ 3. At each directory, we build a tree with its contents, say
+    =cacodemon.png=, =imp.png= and =baron-of-hell.png=.
+ 4. We write the new tree to the repository.
+ 5. We then add this tree to this directory's parent.  Meaning that at
+    this point, =assets/sprites/= now contains our new tree object's
+    SHA-1 id under the name =monsters=.
+ 6. And we iterate over the next directory, let's say
+    =assets/sprites/keys= where we find =red.png=, =blue.png= and
+    =yellow.png=, create a tree, store the tree, add the tree's SHA-1
+    under the name =keys= under =assets/sprites/=, and so on.
+
+Remember tree are recursive?  So the last tree we'll build, which is
+necessarily the one for root (since its length is 0), ultimately
+refers to all others, so it's the only one we need.  We simply return
+its SHA, and we're done.
 
 #+begin_src python :tangle libwyag.py
-    def tree_from_index(repo, index):
-        contents = dict()
-        contents[""] = list()
+  def tree_from_index(repo, index):
+      contents = dict()
+      contents[""] = list()
 
-        # Enumerate entries, and turn them into a dictionary where keys
-        # are directories, and values are lists of directory contents.
-        for entry in index.entries:
-            dirname = os.path.dirname(entry.name)
+      # Enumerate entries, and turn them into a dictionary where keys
+      # are directories, and values are lists of directory contents.
+      for entry in index.entries:
+          dirname = os.path.dirname(entry.name)
 
-            # We create all dictonary entries up to root ("").  We need
-            # them *all*, because even if a directory holds no files it
-            # will contain at least a tree.
-            key = dirname
-            while key != "":
-                if not key in contents:
-                    contents[key] = list()
-                key = os.path.dirname(key)
+          # We create all dictonary entries up to root ("").  We need
+          # them *all*, because even if a directory holds no files it
+          # will contain at least a tree.
+          key = dirname
+          while key != "":
+              if not key in contents:
+                  contents[key] = list()
+              key = os.path.dirname(key)
 
-            # For now, simply store the entry in the list.
-            contents[dirname].append(entry)
+          # For now, simply store the entry in the list.
+          contents[dirname].append(entry)
 
-        # Get keys (= directories) and sort them by length, descending.
-        # easiest way to traverse the list of paths bottom-up.  This means
-        # that we'll always encounter a given path before its parent,
-        # which is all we need.
-        sorted_paths = sorted(contents.keys(), key=len, reverse=True)
-        sha = None
+      # Get keys (= directories) and sort them by length, descending.
+      # easiest way to traverse the list of paths bottom-up.  This means
+      # that we'll always encounter a given path before its parent,
+      # which is all we need.
+      sorted_paths = sorted(contents.keys(), key=len, reverse=True)
+      sha = None
 
-        # We create, and write, trees
-        for path in sorted_paths:
-            tree = GitTree()
+      # We create, and write, trees
+      for path in sorted_paths:
+          tree = GitTree()
 
-            for entry in contents[path]:
-                if isinstance(entry, GitIndexEntry):
-                    # We transcode the mode: the entry stores it as integers,
-                    # we need an octal ASCII representation for the tree.
-                    leaf_mode = "{:02o}{:04o}".format(entry.mode_type, entry.mode_perms).encode("ascii")
-                    leaf = GitTreeLeaf(mode = leaf_mode, path=os.path.basename(entry.name), sha=entry.sha)
-                else:
-                    leaf = GitTreeLeaf(mode = b"040000", path=entry[0], sha=entry[1])
+          for entry in contents[path]:
+              An entry can be a normal GitIndexEntry read from the index, or a tree we've created.
+              if isinstance(entry, GitIndexEntry): # Regular entry
+                  # We transcode the mode: the entry stores it as integers,
+                  # we need an octal ASCII representation for the tree.
+                  leaf_mode = "{:02o}{:04o}".format(entry.mode_type, entry.mode_perms).encode("ascii")
+                  leaf = GitTreeLeaf(mode = leaf_mode, path=os.path.basename(entry.name), sha=entry.sha)
+              else: # Tree.  It comes as a pair: (basename, SHA)
+                  leaf = GitTreeLeaf(mode = b"040000", path=entry[0], sha=entry[1])
 
-                tree.items.append(leaf)
+              tree.items.append(leaf)
 
-            # Write the new tree object.
-            sha = object_write(tree, repo)
+          # Write the new tree object.
+          sha = object_write(tree, repo)
 
-            # Add the new tree to its parent.
-            parent = os.path.dirname(path)
-            base = os.path.basename(path)
-            contents[parent].append((base, sha))
+          # Add the new tree to its parent, as a pair (basename, SHA)
+          parent = os.path.dirname(path)
+          base = os.path.basename(path) # The name without the path, eg main.go for src/main.go
+          contents[parent].append((base, sha))
 
-        return sha
+      return sha
 #+end_src
 
-The function to create a commit object is simple enough, it just takes a few arguments.
+This was the hard part.  It's a bit of a recursion dance, so I hope
+it's still clean enough.  From this, creating the commit object and
+updating HEAD will be way easier.
+
+The function to create a commit object is simple enough, it just takes a few more arguments than usual.
+
+# @TODO Explain them!
 
 #+begin_src python :tangle libwyag.py
     def commit_create(repo, tree, parent, author, timestamp, tz, message):
         commit = GitCommit()
         commit.kvlm[b"tree"] = tree.encode("ascii")
         if parent:
-            commit.kvlm[b"parent"] = parent.encode("utf8")
+            commit.kvlm[b"parent"] = parent.encode("ascii")
 
         author = author + timestamp.strftime(" %s ") + tz
 
@@ -3425,8 +3452,8 @@ The function to create a commit object is simple enough, it just takes a few arg
         return object_write(commit, repo)
 #+end_src
 
-And finally, we write the actual =cmd_commit=, the bridge function to
-the =wyag commit= command:
+All what remains to do is the actual =cmd_commit=, the bridge function
+to the =wyag commit= command:
 
 #+begin_src python :tangle libwyag.py
   def cmd_commit(args):
