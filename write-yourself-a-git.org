@@ -213,10 +213,6 @@ You're done!
    You should have received a copy of the GNU General Public License
    along with Wyag.  If not, see <https://www.gnu.org/licenses/>.
 
-  ########################################################################
-   GENERATED --- DO NOT EDIT. Please see the Contributing section in     #
-   the article for more information. <https://wyag.thb.lt/#contributing> #
-  ########################################################################
 #+END_SRC
 
    #+BEGIN_SRC python :tangle libwyag.py :exports none :noweb yes
