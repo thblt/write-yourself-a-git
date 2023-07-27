@@ -1627,7 +1627,14 @@ a SHA-1:
 
 #+BEGIN_SRC python :tangle libwyag.py
   def ref_resolve(repo, ref):
-      with open(repo_file(repo, ref), 'r') as fp:
+      path = repo_file(repo, ref)
+      # Recursive references may fail in one case: we're following HEAD
+      # an a new repository with no commits.  In that case, .git/HEAD
+      # points to ref: refs/heads/main, but .git/refs/heads/main doesn't
+      # exist yet (since there's no commit for it to refer to)
+      if not os.path.isfile(path):
+          return None
+      with open(path, 'r') as fp:
           data = fp.read()[:-1]
           # Drop final \n ^^^^^
       if data.startswith("ref: "):
@@ -2177,7 +2184,13 @@ that share the same byte.
 
 #+BEGIN_SRC python :tangle libwyag.py
   def index_read(repo):
-      with open(repo_file(repo, "index"), 'rb') as f:
+      index_file = repo_file(repo, "index")
+
+      # New repositories have no index!
+      if not os.path.exists(index_file):
+          return GitIndex()
+
+      with open(index_file, 'rb') as f:
           raw = f.read()
 
       header = raw[:12]
