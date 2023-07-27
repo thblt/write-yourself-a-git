@@ -501,7 +501,7 @@ the following paths:
       if os.path.exists(repo.worktree):
           if not os.path.isdir(repo.worktree):
               raise Exception ("%s is not a directory!" % path)
-          if os.listdir(repo.worktree):
+          if os.path.exists(repo.gitdir) and os.listdir(repo.gitdir):
               raise Exception("%s is not empty!" % path)
       else:
           os.makedirs(repo.worktree)
@@ -586,6 +586,7 @@ command, we're only going to need two more things:
                        nargs="?",
                        default=".",
                        help="Where to create the repository.")
+
     #+END_SRC
 
 2. We also need a "bridge" function that will read argument values
