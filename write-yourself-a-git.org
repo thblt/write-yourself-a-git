@@ -3521,21 +3521,10 @@ if you prefer.
 
 ** License
 
-This document is part of wyag <[[https://wyag.thb.lt][https://wyag.thb.lt]]>.  Copyright (c)
-2018--2023 Thibault Polge <[[mailto:thibault@thb.lt][thibault@thb.lt]]>.  All rights reserved
-
-Wyag is free software: you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Wyag is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-License for more details.
-
-You should have received a copy of the GNU General Public License
-along with Wyag.  If not, see <http://www.gnu.org/licenses/>.
+This article is distributed under the terms of the [[https://creativecommons.org/licenses/by-nc-sa/4.0/][Creative Commons
+BY-NC-SA 4.0]].  The [[./wyag.zip][program itself]] is also licensed under the terms
+of the GNU General Public License 3.0, or, at your option, any later
+version of the same licence.
 
 * Footnotes
 
