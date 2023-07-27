@@ -1433,10 +1433,38 @@ until input data is exhausted.
       return ret
 #+END_SRC
 
-Last but not least, we'll need a serializer:
+Last but not least, we'll need a serializer.  Because we may have
+added or modified entries, we need to sort them again.  *This is
+extremely important*, since (1) by simply changing the order of
+fields, we could create equivalent (describing the same directory
+structure) but numerically different (different name, different SHA-1)
+trees, which would be invalid.  Because of its [[identity-rules][identity rules]], git
+assumes that trees with different hashes are actually
+different. (Having equivalent trees with different hashes will break
+`status`, among possibly a lot of other things)
+
+The ordering function is quite simple: entries are sorted by name,
+alphabetically, /but/ directories (that is, tree entries) are sorted
+with a final =/= added.  It matters, because it means that if
+=whatever= is a regular file, it will sort /before/ =whatever.c=, but
+/after/ if it's a directory.
+
+#+begin_src python :tangle libwyag.py
+  # Notice this isn't a comparison function, but a conversion function.
+  # Python's default sort doesn't accept a custom comparison function,
+  # like in most languages, but a `key` arguments that returns a new
+  # value, which is sorted using the default rules.  So we just return
+  # the leaf name, with an extra / if it's a directory.
+  def tree_leaf_sort_key(leaf):
+      if leaf.mode.startswith(b"10"):
+          return leaf.path
+      else:
+          return leaf.path + "/"
+#+end_src
 
 #+BEGIN_SRC python :tangle libwyag.py
   def tree_serialize(obj):
+      obj.items.sort(key=tree_leaf_sort_key)
       ret = b''
       for i in obj.items:
           ret += i.mode
