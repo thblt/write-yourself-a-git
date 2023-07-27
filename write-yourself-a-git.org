@@ -3458,7 +3458,6 @@ to the =wyag commit= command:
 
 #+begin_src python :tangle libwyag.py
   def cmd_commit(args):
-      print(args)
       repo = repo_find()
       index = index_read(repo)
       # Create trees, grab back SHA for the root tree.
