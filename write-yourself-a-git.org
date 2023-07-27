@@ -2703,6 +2703,7 @@ recursive, so the function itself is --- sorry about that :)
 
       for entry in index.entries:
           full_path = os.path.join(repo.worktree, entry.name)
+
           # That file *name* is in the index
 
           if not os.path.exists(full_path):
