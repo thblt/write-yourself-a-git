@@ -2715,6 +2715,7 @@ recursive, so the function itself is --- sorry about that :)
               mtime_ns = entry.mtime[0] * 10**9 + entry.mtime[1]
               if (stat.st_ctime_ns != ctime_ns) or (stat.st_mtime_ns != mtime_ns):
                   # If different, deep compare.
+                  # @FIXME This *will* crash on symlinks to dir.
                   with open(full_path, "rb") as fd:
                       new_sha = object_hash(fd, b"blob", None)
                       # If the hashes are the same, the files are actually the same.
