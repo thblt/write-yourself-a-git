@@ -1177,7 +1177,7 @@ We're going to need to write similar objects, so let's add a
               ret += k + b' ' + (v.replace(b'\n', b'\n ')) + b'\n'
 
       # Append message
-      ret += b'\n' + kvlm[b'']
+      ret += b'\n' + kvlm[b''] + b'\n'
 
       return ret
 #+END_SRC
