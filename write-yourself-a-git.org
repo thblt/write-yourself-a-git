@@ -3406,7 +3406,8 @@ its SHA, and we're done.
           tree = GitTree()
 
           for entry in contents[path]:
-              An entry can be a normal GitIndexEntry read from the index, or a tree we've created.
+              # An entry can be a normal GitIndexEntry read from the
+              # index, or a tree we've created.
               if isinstance(entry, GitIndexEntry): # Regular entry
                   # We transcode the mode: the entry stores it as integers,
                   # we need an octal ASCII representation for the tree.
