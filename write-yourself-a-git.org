@@ -27,11 +27,14 @@
 #+SETUPFILE: lib/org-html-themes/org/theme-readtheorg-local.setup
 
 * Introduction
+:PROPERTIES:
+:CUSTOM_ID: intro
+:END:
 
 #+begin_note
-  (July 2023) I'm resuming work on this article.  Sections 1 to 7 are
-  done and in good state, the code in sections 8 works but the text
-  needs work, section 9 is still incomplete, and should be done this month. --- Thibault
+  (July 2023) This should be reasonably close to a final version of
+  the article.  I've had to make some breaking changes to the code, I
+  hope it doesn't break anything! --- Thibault
 #+end_note
 
 This article is an attempt at explaining the [[https://git-scm.com/][Git version control
@@ -100,8 +103,6 @@ More precisely, we'll implement:
     "log"
     "ls-files"
     "ls-tree"
-    "merge"
-    "rebase"
     "rev-parse"
     "rm"
     "show-ref"
@@ -368,12 +369,19 @@ executing the actual command.
 #+END_SRC
 
 * Creating repositories: init
+:PROPERTIES:
+:CUSTOM_ID: init
+:END:
+
 
 Obviously, the first Git command in chronological /and/ logical order is
 =git init=, so we'll begin by creating =wyag init=.  To achieve this,
 we're going to first need some very basic repository abstraction.
 
 ** The Repository object
+:PROPERTIES:
+:CUSTOM_ID: GitRepository
+:END:
 
 We'll obviously need some abstraction for a repository: almost every
 time we run a git command, we're trying to do something to a
@@ -399,7 +407,7 @@ To create a new =Repository= object, we only need  to make a few checks:
    and control that =core.repositoryformatversion= is 0.  More on that
    field in a moment.
 
-The constructor takes an optional =force= which disables all check.
+The constructor takes an optional =force= which disables all checks.
 That's because the =repo_create()= function which we'll create later uses
 a =Repository= object to /create/ the repo.  So we need a way to create
 repository even from (still) invalid filesystem locations.
@@ -483,11 +491,12 @@ the following paths:
 
  - =.git= is the git directory itself, which contains:
    - =.git/objects/= : the object store, which we'll introduce [[#objects][in the next section]].
-   - =.git/refs/= the reference store, which we'll discuss [[#refs][a bit later]].
+   - =.git/refs/= the reference store, which we'll discuss [[#cmd-show-ref][a bit later]].
      It contains two subdirectories, =heads= and =tags=.
    - =.git/HEAD=, a reference to the current HEAD (more on that later!)
    - =.git/config=, the repository's configuration file.
-   - =.git/description=, the repository's description file.
+   - =.git/description=, holds a free-form description of this
+     repository's contents, for humans, and is rarely used.
 
 #+BEGIN_SRC python :tangle libwyag.py
   def repo_create(path):
@@ -532,8 +541,7 @@ single section (=[core]=) and three fields:
  - =repositoryformatversion = 0=: the version of
    the gitdir format.  0 means the initial format, 1 the same with
    extensions.  If > 1, git will panic; wyag will only accept 0.
- - =filemode = false=: disable tracking of file mode changes in the work tree.
-# TODO Explain what «file modes» are
+ - =filemode = false=: disable tracking of file mode (permissions) changes in the work tree.
  - =bare = false=: indicates that this repository has a worktree.  Git
    supports an optional =worktree= key which indicates the location of
    the worktree, if not =..=; wyag doesn't.
@@ -606,6 +614,9 @@ able to =wyag init= a git repository anywhere:
 #+end_example
 
 ** The repo_find() function
+:PROPERTIES:
+:repo_find:
+:END:
 
 While we're implementing repositories, we're going to need a function
 to find the root of the current repository.  We'll use it a lot, since
@@ -649,6 +660,9 @@ And we're done with repositories!
 :END:
 
 ** What are objects?
+:PROPERTIES:
+:CUSTOM_ID: objects-intro
+:END:
 
 Now that we have repositories, putting things inside them is in order.
 Also, repositories are boring, and writing a Git implementation
@@ -661,16 +675,16 @@ of an everyday git toolbox, and they're actually quite low-level
 =hash-object= converts an existing file into a git object, and =cat-file=
 prints an existing git object to the standard output.
 
-Now, *what actually is a Git object?*  At its core, Git is a
+Now, *what actually is a Git object?* At its core, Git is a
 "content-addressed filesystem".  That means that unlike regular
 filesystems, where the name of a file is arbitrary and unrelated to
 that file's contents, the names of files as stored by Git are
 mathematically derived from their contents.  This has a very important
 implication: if a single byte of, say, a text file, changes, its
-internal name will change, too.  To put it simply: you don't /modify/ a
-file, you create a new file in a different location.  Objects are just
-that: files in the git repository, whose path is determined by their
-contents.
+internal name will change, too.  To put it simply: you don't /modify/
+a file, you create a new file in a different location.  Objects are
+just that: *files in the git repository, whose paths are determined by
+their contents*.
 
 #+begin_warning
 *Git is not (really) a key-value store*
@@ -703,25 +717,26 @@ average number of files per directory by 256)
 Simply put, a hash function is a kind of unidirectional mathematical
 function: it is easy to compute the hash of a value, but there's no
 way to compute which value produced a hash.  A very simple example of
-a hash function is the =strlen= function.  It's really easy to compute
-the length of a string, and the length of a given string will never
-change (unless the string itself changes, of course!) but it's
-impossible to retrieve the original string, given only its length.
-/Cryptographic/ hash functions are just a much more complex version of
-the same, with the added property that computing an input meant to
-produce a given hash is hard enough to be
-practically impossible.  (With =strlen=, producing an input =i= with
-~strlen(i) == 12~, you just have to type twelve random characters.  With
-algorithms such as SHA-1. it would take much, much longer --- long
-enough to be practically impossible[fn:1].
+a hash function is the classical =len= (or =strlen=) function, that
+returns the length of a string.  It's really easy to compute the
+length of a string, and the length of a given string will never change
+(unless the string itself changes, of course!) but it's impossible to
+retrieve the original string, given only its length.  /Cryptographic/
+hash functions are just a much more complex version of the same, with
+the added property that computing an input meant to produce a given
+hash is hard enough to be practically impossible.  (To produce an
+input =i= with ~strlen(i) == 12~, you just type twelve random
+characters.  With algorithms such as SHA-1. it would take much, much
+longer --- long enough to be practically impossible[fn:1]).
 #+END_note
 
 Before we start implementing the object storage system, we must
 understand their exact storage format.  An object starts with a header
-that specifies its type: =blob=, =commit=, =tag= or =tree=.  This header is
-followed by an ASCII space (0x20), then the size of the object in bytes as an
-ASCII number, then null (0x00) (the null byte), then the contents of the
-object.  The first 48 bytes of a commit object in Wyag's repo look like this:
+that specifies its type: =blob=, =commit=, =tag= or =tree= (more on
+that in a second).  This header is followed by an ASCII space (0x20),
+then the size of the object in bytes as an ASCII number, then null
+(0x00) (the null byte), then the contents of the object.  The first 48
+bytes of a commit object in Wyag's repo look like this:
 
 #+BEGIN_EXAMPLE
 00000000  63 6f 6d 6d 69 74 20 31  30 38 36 00 74 72 65 65  |commit 1086.tree|
@@ -743,9 +758,14 @@ storage/retrieval mechanism and the same general header format.
 Before we dive into the details of various types of objects, we need
 to abstract over these common features.  The easiest way is to create
 a generic =GitObject= with two unimplemented methods: =serialize()=
-and =deserialize()=, and a default =init()= Later, we'll subclass this
-generic class, actually implementing these functions for each object
-format.
+and =deserialize()=, and a default =init()= to create a new, empty
+object if needed (sorry pythonistas, this isn't very nice design but
+it's probably easier to read than superconstructors).  Our __init__
+either loads the object from the provided data, or calls the
+subclass-provided =init()= to create a new, empty object.
+
+Later, we'll subclass this generic class, actually implementing these
+functions for each object format.
 
 #+BEGIN_SRC python :tangle libwyag.py
 class GitObject (object):
@@ -767,10 +787,13 @@ whatever it takes to convert it into a meaningful representation.  What exactly 
         raise Exception("Unimplemented!")
 
     def init(self):
-        pass
+        pass # Just do nothing. This is a reasonable default!
 #+END_SRC
 
 ** Reading objects
+:PROPERTIES:
+:CUSTOM_ID: object_read
+:END:
 
 To read an object, we need to know its hash.  We then compute its path
 from this hash (with the formula explained above: first two
@@ -792,10 +815,13 @@ object's format.
 
 #+BEGIN_SRC python :tangle libwyag.py
   def object_read(repo, sha):
-      """Read object object_id from Git repository repo.  Return a
+      """Read object sha from Git repository repo.  Return a
       GitObject whose exact type depends on the object."""
 
       path = repo_file(repo, "objects", sha[0:2], sha[2:])
+
+      if not os.path.isfile(path):
+          return None
 
       with open (path, "rb") as f:
           raw = zlib.decompress(f.read())
@@ -811,19 +837,21 @@ object's format.
               raise Exception("Malformed object {0}: bad length".format(sha))
 
           # Pick constructor
-          if   fmt==b'commit' : c=GitCommit
-          elif fmt==b'tree'   : c=GitTree
-          elif fmt==b'tag'    : c=GitTag
-          elif fmt==b'blob'   : c=GitBlob
-          else:
-              raise Exception("Unknown type {0} for object {1}".format(fmt.decode("ascii"), sha))
+          match fmt:
+              case b'commit' : c=GitCommit
+              case b'tree'   : c=GitTree
+              case b'tag'    : c=GitTag
+              case b'blob'   : c=GitBlob
+              case _:
+                  raise Exception("Unknown type {0} for object {1}".format(fmt.decode("ascii"), sha))
 
           # Call constructor and return object
           return c(raw[y+1:])
 #+END_SRC
 
-<<placeholder-object_find>> We haven't introduced the =object_find= function yet.  It's actually a
-placeholder, and looks like this:
+<<placeholder-object_find>> This function calls an =object_find=
+function we haven't introduced yet.  For now, it's just going to
+return one of its arguments unmodified, like this:
 
 #+BEGIN_SRC python
 def object_find(repo, name, fmt=None, follow=True):
@@ -833,11 +861,15 @@ def object_find(repo, name, fmt=None, follow=True):
 The reason for this strange small function is that Git has a /lot/ of
 ways to refer to objects: full hash, short hash, tags...
 =object_find()= will be our name resolution function.  We'll only
-implement it [[#func-object_find][later]], so this is a temporary placeholder.  This means
-that until we implement the real thing, the only way we can refer to
-an object will be by its full hash.
+implement it [[#object_find][later]], so this is just a temporary placeholder (so our
+code can run already, without the real version).  This means that
+until we implement the real thing, the only way we can refer to an
+object will be by its full hash.
 
 ** Writing objects
+:PROPERTIES:
+:object_write:
+:END:
 
 Writing an object is reading it in reverse: we compute the hash,
 insert the header, zlib-compress everything and write the result in
@@ -866,13 +898,17 @@ that the hash is computed *after* the header is added.
 
 ** Working with blobs
 
-Of the four Git object types, blobs are the simplest, because they
-have no actual format.  Blobs are user content: every file you put in
-git is stored as a blob.  That make them easy to manipulate, because
-they have no actual syntax or constraints beyond the basic object
-storage mechanism: they're just unspecified data.  Creating a =GitBlob=
-class is thus trivial, the =serialize= and =deserialize= functions just
-have to store and return their input unmodified.
+We said earlier that the type header could be one of four: =blob=,
+=commit=, =tag= and =tree= --- so git has four object types.
+
+Out of those four types, blobs are the simplest, because they have no
+actual format.  Blobs are user data: the content of every file you
+put in git (=main.c=, =logo.png=, =README.md=) is stored as a blob.
+That makes them easy to manipulate, because they have no actual syntax
+or constraints beyond the basic object storage mechanism: they're just
+unspecified data.  Creating a =GitBlob= class is thus trivial, the
+=serialize= and =deserialize= functions just have to store and return
+their input unmodified.
 
 #+BEGIN_SRC python :tangle libwyag.py
   class GitBlob(GitObject):
@@ -890,11 +926,18 @@ have to store and return their input unmodified.
 :CUSTOM_ID: cmd-cat-file
 :END:
 
-With all that, we can now create =wyag cat-file=.  The basic syntax of
-=git cat-file= is just two positional arguments: a type and an object identifier:
+With all that, we can now create =wyag cat-file=.  =git cat-file=
+simply prints the raw contents of an object to stdout, just
+uncompressed and header removed.  In a copy of [[https://github.com/thblt/write-yourself-a-git][wyag's source
+repository]], =git cat-file blob
+e0695f14a412c29e252c998c81de1dde59658e4a= will show a version of the
+README.
+
+Our simplified version will just take those two positional arguments:
+a type and an object identifier:
 
 #+BEGIN_EXAMPLE
-  git cat-file TYPE OBJECT
+  wyag cat-file TYPE OBJECT
 #+END_EXAMPLE
 
 The subparser is very simple:
@@ -931,8 +974,9 @@ call into already written logic:
 :CUSTOM_ID: cmd-hash-object
 :END:
 
-=hash-object= is basically the opposite of =cat-file=: it reads a file,
-computes its hash as an object, either storing it in the
+We will want to put our /own/ data in our repositories,
+though. =hash-object= is basically the opposite of =cat-file=: it
+reads a file, computes its hash as an object, either storing it in the
 repository (if the -w flag is passed) or just printing its hash.
 
 The basic syntax of =git hash-object= looks like this:
@@ -979,8 +1023,8 @@ bridge function:
           print(sha)
 #+END_SRC
 
-and the actual implementation.  The repo argument is optional, and the
-object isn't written if it is None:
+and the actual implementation.  The =repo= argument is optional, and the
+object isn't written if it is =None= (this is handled in =object_write()=, above):
 
 #+BEGIN_SRC python :tangle libwyag.py
     def object_hash(fd, fmt, repo=None):
@@ -998,7 +1042,7 @@ object isn't written if it is None:
         return object_write(obj, repo)
 #+END_SRC
 
-** What about packfiles?
+** Aside: what about packfiles?
 :PROPERTIES:
 :CUSTOM_ID: packfiles
 :END:
@@ -1065,14 +1109,15 @@ The format is a simplified version of mail messages, as specified in
 [[https://www.ietf.org/rfc/rfc2822.txt][RFC 2822]].  It begins with a series of key-value pairs, with space as
 the key/value separator, and ends with the commit message, that may
 span over multiple lines.  Values may continue over multiple lines,
-subsequent lines start with a space which the parser must drop.
+subsequent lines start with a space which the parser must drop (like
+the =gpgsig= field above, which spans over 16 lines).
 
 Let's have a look at those fields:
 
 - =tree= is a reference to a tree object, a type of object that we'll
-  see soon.  A tree maps blobs IDs to filesystem locations, and
-  describes a state of the work tree.  Put simply, it is
-  the actual content of the commit: files, and where they go.
+  see just next.  A tree maps blobs IDs to filesystem locations, and
+  describes a state of the work tree.  Put simply, it is the actual
+  content of the commit: file contents, and where they go.
 - =parent= is a reference to the parent of this commit.  It may be
   repeated: merge commits, for example, have multiple parents.  It
   may also be absent: the very first commit in a repository obviously
@@ -1089,76 +1134,86 @@ tags have the very same format, so we'll use it for both objects types.
 I use KVLM to mean "Key-Value List with Message".
 
 #+BEGIN_SRC python :tangle libwyag.py
-  def kvlm_parse(raw, start=0, dct=None):
-      if not dct:
-          dct = collections.OrderedDict()
-          # You CANNOT declare the argument as dct=OrderedDict() or all
-          # call to the functions will endlessly grow the same dict.
+   def kvlm_parse(raw, start=0, dct=None):
+       if not dct:
+           dct = collections.OrderedDict()
+           # You CANNOT declare the argument as dct=OrderedDict() or all
+           # call to the functions will endlessly grow the same dict.
 
-      # We search for the next space and the next newline.
-      spc = raw.find(b' ', start)
-      nl = raw.find(b'\n', start)
+       # This function is recursive: it reads a key/value pair, then call
+       # itself back with the new position.  So we first need to know
+       # where we are: at a keyword, or already in the messageQ
 
-      # If space appears before newline, we have a keyword.
+       # We search for the next space and the next newline.
+       spc = raw.find(b' ', start)
+       nl = raw.find(b'\n', start)
 
-      # Base case
-      # =========
-      # If newline appears first (or there's no space at all, in which
-      # case find returns -1), we assume a blank line.  A blank line
-      # means the remainder of the data is the message.
-      if (spc < 0) or (nl < spc):
-          assert nl == start
-          dct[b''] = raw[start+1:]
-          return dct
+       # If space appears before newline, we have a keyword.  Otherwise,
+       # it's the final message, which we just read to the end of the file.
 
-      # Recursive case
-      # ==============
-      # we read a key-value pair and recurse for the next.
-      key = raw[start:spc]
+       # Base case
+       # =========
+       # If newline appears first (or there's no space at all, in which
+       # case find returns -1), we assume a blank line.  A blank line
+       # means the remainder of the data is the message.  We store it in
+       # the dictionary, with None as the key, and return.
+       if (spc < 0) or (nl < spc):
+           assert nl == start
+           dct[None] = raw[start+1:]
+           return dct
 
-      # Find the end of the value.  Continuation lines begin with a
-      # space, so we loop until we find a "\n" not followed by a space.
-      end = start
-      while True:
-          end = raw.find(b'\n', end+1)
-          if raw[end+1] != ord(' '): break
+       # Recursive case
+       # ==============
+       # we read a key-value pair and recurse for the next.
+       key = raw[start:spc]
 
-      # Grab the value
-      # Also, drop the leading space on continuation lines
-      value = raw[spc+1:end].replace(b'\n ', b'\n')
+       # Find the end of the value.  Continuation lines begin with a
+       # space, so we loop until we find a "\n" not followed by a space.
+       end = start
+       while True:
+           end = raw.find(b'\n', end+1)
+           if raw[end+1] != ord(' '): break
 
-      # Don't overwrite existing data contents
-      if key in dct:
-          if type(dct[key]) == list:
-              dct[key].append(value)
-          else:
-              dct[key] = [ dct[key], value ]
-      else:
-          dct[key]=value
+       # Grab the value
+       # Also, drop the leading space on continuation lines
+       value = raw[spc+1:end].replace(b'\n ', b'\n')
 
-      return kvlm_parse(raw, start=end+1, dct=dct)
+       # Don't overwrite existing data contents
+       if key in dct:
+           if type(dct[key]) == list:
+               dct[key].append(value)
+           else:
+               dct[key] = [ dct[key], value ]
+       else:
+           dct[key]=value
+
+       return kvlm_parse(raw, start=end+1, dct=dct)
 #+END_SRC
 
 #+begin_info
 <<identity-rules>> *Object identity rules*
 
-We use an =OrderedDict=, a dictionary where keys are ordered, so
-fields always appear in the same order.  This is crucial, because Git
-has two strong rules about object identity:
+We use an =OrderedDict=, a dictionary (hashmap) where keys are
+ordered, so fields always appear in the same order.  This is crucial,
+because Git has two strong rules about object identity:
 
  1. *The same name will always refer to the same object*, we've seen
     this already, it's guaranteed by the fact that an object's name is
     a hash of its contents.
  2. *The same object will always be referred by the same name*.  This
     is subtly different: by modifying the /order/ fields appear in a
-    commit, eg by putting the =tree= after the =parent=, we'd create
-    two equivalent, but numerically distinct, commit objects.
+    given commit, eg by putting the =tree= after the =parent=, we'd
+    modify the SHA-1 hash of the commit, and we'd create two
+    equivalent, but numerically distinct, commit objects.
 
-This will matter a lot more with trees.
+These rules must hold, or git may behave strangely, especially with
+tree objects.
 #+end_info
 
-We're going to need to write similar objects, so let's add a
-=kvlm_serialize()= function to our toolkit.
+We're also going to need to write similar objects, so let's add a
+=kvlm_serialize()= function to our toolkit.  This is very simple: we
+write all fields first, then a newline, the message, and a final
+newline.
 
 #+BEGIN_SRC python :tangle libwyag.py
   def kvlm_serialize(kvlm):
@@ -1167,7 +1222,7 @@ We're going to need to write similar objects, so let's add a
       # Output fields
       for k in kvlm.keys():
           # Skip the message itself
-          if k == b'': continue
+          if k == None: continue
           val = kvlm[k]
           # Normalize to a list
           if type(val) != list:
@@ -1177,12 +1232,15 @@ We're going to need to write similar objects, so let's add a
               ret += k + b' ' + (v.replace(b'\n', b'\n ')) + b'\n'
 
       # Append message
-      ret += b'\n' + kvlm[b''] + b'\n'
+      ret += b'\n' + kvlm[None] + b'\n'
 
       return ret
 #+END_SRC
 
 ** The Commit object
+:PROPERTIES:
+:object_write: GitCommit
+:END:
 
 Now we have the parser, we can create the =GitCommit= class:
 
@@ -1225,6 +1283,7 @@ dead, lookup "graphviz online" in your favorite search engine)
       repo = repo_find()
 
       print("digraph wyaglog{")
+      print("  node[shape=rect]")
       log_graphviz(repo, object_find(repo, args.commit), set())
       print("}")
 
@@ -1235,6 +1294,15 @@ dead, lookup "graphviz online" in your favorite search engine)
       seen.add(sha)
 
       commit = object_read(repo, sha)
+      short_hash = sha[0:8]
+      message = commit.kvlm[None].decode("utf8").strip()
+      message = message.replace("\\", "\\\\")
+      message = message.replace("\"", "\\\"")
+
+      if "\n" in message: # Keep only the first line
+          message = message[:message.index("\n")]
+
+      print("  c_{0} [label=\"{1}: {2}\"]".format(sha, sha[0:7], message))
       assert commit.fmt==b'commit'
 
       if not b'parent' in commit.kvlm.keys():
@@ -1248,7 +1316,7 @@ dead, lookup "graphviz online" in your favorite search engine)
 
       for p in parents:
           p = p.decode("ascii")
-          print ("c_{0} -> c_{1};".format(sha, p))
+          print ("  c_{0} -> c_{1};".format(sha, p))
           log_graphviz(repo, p, seen)
 #+END_SRC
 
@@ -1260,6 +1328,9 @@ You can now use our log command like this:
 #+END_SRC
 
 ** Anatomy of a commit
+:PROPERTIES:
+:CUSTOM_ID: commit-anatomy
+:END:
 
 You may have noticed a few things right now.
 
@@ -1267,59 +1338,61 @@ First and foremost, we've been playing with commits, browsing and
 walking through commit objects, building a graph of commit history,
 without ever touching a single file in the worktree or a blob.  We've
 done a lot with commits /without considering their contents/.  This is
-important: work tree contents are just a part of a commit.  But a
-commit is made of everything: its contents, its authors, and also its
-parents.  If you remember that the ID (the SHA-1 hash) of a commit is
-computed from the whole commit object, you'll understand what it means
-that commits are immutable: if you change the author, the parent
-commit or a single file, you've actually created a new, different
-object.  Each and every commit is bound to its place and its
+important: work tree contents are just one part of a commit.  But a
+commit is made of everything it holds: its contents, its authors,
+*also its parents*.  If you remember that the ID (the SHA-1 hash) of a
+commit is computed from the whole commit object, you'll understand
+what it means that commits are immutable: if you change the author,
+the parent commit or a single file, you've actually created a new,
+different object.  Each and every commit is bound to its place and its
 relationship to the whole repository up to the very first commit.  To
 put it otherwise, a given commit ID not only identifies some file
 contents, but it also binds the commit to its whole history and to the
 whole repository.
 
 It's also worth noting that from the point of view of a commit, time
-runs backwards: we're used to considering the history of a project
-from its humble beginnings as an evening distraction, starting with a
-few lines of code, some initial commits, and progressing to its
+somehow runs backwards: we're used to considering the history of a
+project from its humble beginnings as an evening distraction, starting
+with a few lines of code, some initial commits, and progressing to its
 present state (millions of lines of code, dozens of contributors,
-whatever).  But each commit is completely unaware of its future,
-it's only linked to the past.  Commits have "memory", but no
-premonition.
+whatever).  But each commit is completely unaware of its future, it's
+only linked to the past.  Commits have "memory", but no premonition.
 
-#+begin_note
-In Terry Pratchett's Discworld, trolls believe they progress in time
-from the future to the past.  The reasoning behind that belief is that
-when you walk, what you can see is what's /ahead/ of you.  Of time, all
-you can perceive is the past, because you remember; hence it's where
-you're headed.  Git was written by a Discworld troll.
-#+end_note
+# #+begin_note
+#   In Terry Pratchett's Discworld, trolls believe they progress in time
+#   from the future to the past.  The reasoning behind that belief is
+#   that when you walk, what you can see is what's /ahead/ of you.  Of
+#   time, all you can perceive is the past, because you remember; hence
+#   it's where you're headed.  Commits are Discworld trolls.
+# #+end_note
 
 So what makes a commit?  To sum it up:
 
 - A tree object, which we'll discuss now, that is, the contents of a
   worktree, files and directories;
 - Zero, one or more parents;
-- An author identity (name and email);
-- A committer identity (name and email);
+- An author identity (name and email), and a timestamp;
+- A committer identity (name and email), and a timestamp;
 - An optional PGP signature
 - A message;
 
-All this hashed together in a SHA-1 identifier.
+All this hashed together in a unique SHA-1 identifier.
 
 #+begin_note
-*Wait, does that make Git a blockchain?*
+  *Wait, does that make Git a blockchain?*
 
-Because of cryptocurrencies, blockchains are all the hype these days.
-And yes, /in a way/, Git is a blockchain: it's a sequence of blocks
-(commits) tied together by cryptographic means in a way that guarantee
-that each single element is associated to the whole history of the
-structure.  Don't take the comparison too seriously, though: we don't
-need a GitCoin.  Really, we don't.
+  Because of cryptocurrencies, blockchains are all the hype these
+  days.  And yes, /in a way/, Git is a blockchain: it's a sequence of
+  blocks (commits) tied together by cryptographic means in a way that
+  guarantee that each single element is associated to the whole
+  history of the structure.  Don't take the comparison too seriously,
+  though: we don't need a GitCoin.  Really, we don't.
 #+end_note
 
 * Reading commit data: checkout
+:PROPERTIES:
+:CUSTOM_ID: checkout
+:END:
 
 It's all well that commits hold a lot more than files and directories
 in a given state, but that doesn't make them really useful.  It's
@@ -1333,8 +1406,8 @@ associates blobs to paths.  It's an array of three-element tuples made
 of a file mode, a path (relative to the worktree) and a SHA-1.  A
 typical tree contents may look like this:
 
-| Mode   | SHA-1                                    | Path       |
-|--------+------------------------------------------+------------|
+| Mode     | SHA-1                                      | Path         |
+|----------+--------------------------------------------+--------------|
 | =100644= | =894a44cc066a027465cd26d634948d56d13af9af= | =.gitignore= |
 | =100644= | =94a9ed024d3859793618152ea559a168bbcbb5e2= | =LICENSE=    |
 | =100644= | =bab489c4f4600a38ce6dbfd652b90383a4aa3e45= | =README.md=  |
@@ -1346,42 +1419,42 @@ Mode is just the file's [[https://en.wikipedia.org/wiki/File_system_permissions]
 to either a blob or another tree object.  If a blob, the path is a
 file, if a tree, it's directory.  To instantiate this tree in the
 filesystem, we would begin by loading the object associated to the
-first path (=.gitignore=) and check its type.  Since it's a blob, we'll
-just create a file called =.gitignore= with this blob's contents; and
-same for =LICENSE= and =README.md=.  But the object associated with =src= is
-not a blob, but another tree: we'll create the directory =src= and
-repeat the same operation in that directory with the new tree.
+first path (=.gitignore=) and check its type.  Since it's a blob,
+we'll just create a file called =.gitignore= with this blob's
+contents; and same for =LICENSE= and =README.md=.  But the object
+associated with =src= is not a blob, but another tree: we'll create
+the directory =src= and repeat the same operation in that directory
+with the new tree.
 
 #+BEGIN_warning
-*A path is a single filesystem entry*
+  *A path is a single filesystem entry*
 
-The path identifies exactly one object.  Not two, not three.  If you
-have five levels of nested directories, you're going to need five
-tree objects recursively referring to one another.  You cannot take
-the shortcut of putting a full path in a single tree entry, like
-=dir1/dir2/dir3/dir4/dir5=.
+  The path identifies exactly one file or directory.  Not two, not
+  three.  If you have five levels of nested directories, even if four
+  are empty save the next directory, you're going to need five tree
+  objects recursively referring to one another.  You cannot take the
+  shortcut of putting a full path in a single tree entry, like
+  =dir1/dir2/dir3/dir4/dir5=.
 #+END_warning
 
 ** Parsing trees
 
 Unlike tags and commits, tree objects are binary objects, but their
-format is actually quite simple.  A tree is the concatenation of records of
-the format:
+format is actually quite simple.  A tree is the concatenation of
+records of the format:
 
 #+begin_example
 [mode] space [path] 0x00 [sha-1]
 #+end_example
 
-- =[mode]= is up to six bytes and is an ASCII representation of a file mode.
-  For example, 100644 is encoded with byte values 49 (ASCII "1"), 48
-  (ASCII "0"), 48, 54, 52, 52.
-
-- It's followed by 0x20, an ASCII space;
-
-- Followed by the null-terminated (0x00) path;
-
-- Followed by the object's SHA-1 in binary encoding, on 20 bytes.  Why
-  binary?  God only knows.
+- =[mode]= is up to six bytes and is an octal representation of a file
+  *mode*, stored in ASCII. For example, 100644 is encoded with byte
+  values 49 (ASCII "1"), 48 (ASCII "0"), 48, 54, 52, 52.  The first
+  two digits encode the file type (file, directory, symlink or
+  submodule), the last four the permissions.
+- It's followed by 0x20, an ASCII *space*;
+- Followed by the null-terminated (0x00) *path*;
+- Followed by the object's *SHA-1* in binary encoding, on 20 bytes.
 
 The parser is going to be quite simple.  First, create a tiny object
 wrapper for a single record (a leaf, a single path):
@@ -1407,6 +1480,9 @@ it reached in input data:
 
       # Read the mode
       mode = raw[start:x]
+      if len(mode) == 5:
+          # Normalize to six bytes.
+          mode = b" " + mode
 
       # Find the NULL terminator of the path
       y = raw.find(b'\x00', x)
@@ -1433,27 +1509,32 @@ until input data is exhausted.
       return ret
 #+END_SRC
 
-Last but not least, we'll need a serializer.  Because we may have
-added or modified entries, we need to sort them again.  *This is
-extremely important*, since (1) by simply changing the order of
-fields, we could create equivalent (describing the same directory
-structure) but numerically different (different name, different SHA-1)
-trees, which would be invalid.  Because of its [[identity-rules][identity rules]], git
-assumes that trees with different hashes are actually
-different. (Having equivalent trees with different hashes will break
-`status`, among possibly a lot of other things)
+We'll finally need a serializer to write trees back.  Because we may
+have added or modified entries, we need to sort them again.
+Consistently sorting matters, because we need to respect git's
+[[identity-rules][identity rules]], which says that no two equivalent object can have a
+different hash --- but differently sorted trees with the same contents
+/would/ be equivalent (describing the same directory structure), and
+still numerically distinct (different SHA-1 identifiers).  Incorrectly
+sorted trees are invalid, but /git doesn't enforce that/.  I created
+some invalid trees by accident writing wyag, and all I got was weird
+bugs in =git status= (specifically, =status= would report an actually
+clean worktree as fully modified).  We don't want that.
 
-The ordering function is quite simple: entries are sorted by name,
-alphabetically, /but/ directories (that is, tree entries) are sorted
-with a final =/= added.  It matters, because it means that if
-=whatever= is a regular file, it will sort /before/ =whatever.c=, but
-/after/ if it's a directory.
+The ordering function is quite simple, with an unexpected twist.  are
+Entries sorted by name, alphabetically, /but/ directories (that is,
+tree entries) are sorted with a final =/= added.  It matters, because
+it means that if =whatever= names a regular file, it will sort
+/before/ =whatever.c=, but if =whatever= is a dir, it will sort
+/after/, as =whatever/=. (I'm not sure why git does that.  If you're
+curious, see the function =base_name_compare= in =tree.c= in the git
+source)
 
 #+begin_src python :tangle libwyag.py
   # Notice this isn't a comparison function, but a conversion function.
   # Python's default sort doesn't accept a custom comparison function,
   # like in most languages, but a `key` arguments that returns a new
-  # value, which is sorted using the default rules.  So we just return
+  # value, which is compared using the default rules.  So we just return
   # the leaf name, with an extra / if it's a directory.
   def tree_leaf_sort_key(leaf):
       if leaf.mode.startswith(b"10"):
@@ -1461,6 +1542,10 @@ with a final =/= added.  It matters, because it means that if
       else:
           return leaf.path + "/"
 #+end_src
+
+Then the serializer itself.  This one is very simple: we sort the
+items using our newly created function as a transformer, then write
+them in order.
 
 #+BEGIN_SRC python :tangle libwyag.py
   def tree_serialize(obj):
@@ -1497,27 +1582,53 @@ And now we just have to combine all that into a class:
 :CUSTOM_ID: cmd-ls-tree
 :END:
 
-While we're at it, let's add the =ls-tree= command to wyag.  It's
-so easy there's no reason not to.
+While we're at it, let's add the =ls-tree= command to wyag.  It's so
+easy there's no reason not to.  =git ls-tree [-r] TREE= simply prints
+the contents of a tree, recursively with the =-r= flag.  In recursive
+mode, it doesn't show subtrees, just final objects with their full
+paths.
 
 #+NAME: cmd-ls-tree
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser("ls-tree", help="Pretty-print a tree object.")
-  argsp.add_argument("object",
-                     help="The object to show.")
+  argsp.add_argument("-r",
+                     dest="recursive",
+                     action="store_true",
+                     help="Recurse into sub-trees")
+
+  argsp.add_argument("tree",
+                     help="A tree-ish object.")
 
   def cmd_ls_tree(args):
       repo = repo_find()
-      obj = object_read(repo, object_find(repo, args.object, fmt=b'tree'))
+      ls_tree(repo, args.tree, args.recursive)
 
+  def ls_tree(repo, ref, recursive=None, prefix=""):
+      sha = object_find(repo, ref, fmt=b"tree")
+      obj = object_read(repo, sha)
       for item in obj.items:
-          print("{0} {1} {2}\t{3}".format(
-              "0" * (6 - len(item.mode)) + item.mode.decode("ascii"),
-              # Git's ls-tree displays the type
-              # of the object pointed to.  We can do that too :)
-              object_read(repo, item.sha).fmt.decode("ascii"),
-              item.sha,
-              item.path))
+          if len(item.mode) == 5:
+              type = item.mode[0:1]
+          else:
+              type = item.mode[0:2]
+
+          match type: # Determine the type.
+              case b'04': type = "tree"
+              case b'10': type = "blob" # A regular file.
+              case b'12': type = "blob" # A symlink. Blob contents is link target.
+              case b'16': type = "commit" # A submodule
+              case _: raise Exception("Weird tree leaf mode {}".format(item.mode))
+
+          if not (recursive and type=='tree'): # This is a leaf
+              print("{0} {1} {2}\t{3}".format(
+                  "0" * (6 - len(item.mode)) + item.mode.decode("ascii"),
+                  # Git's ls-tree displays the type
+                  # of the object pointed to.  We can do that too :)
+                  type,
+                  item.sha,
+                  os.path.join(prefix, item.path)))
+          else: # This is a branch, recurse
+              ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
 #+END_SRC
 
 ** The checkout command
@@ -1525,11 +1636,20 @@ so easy there's no reason not to.
 :CUSTOM_ID: cmd-checkout
 :END:
 
-We're going to oversimplify the actual git command to make our implementation clear and understandable.  We're also going to add a few safeguards.  Here's how our version of checkout will work:
+=git checkout= simply instantiates a commit in the worktree.  We're
+going to oversimplify the actual git command to make our
+implementation clear and understandable.  We're also going to add a
+few safeguards.  Here's how our version of checkout will work:
 
-- It will take two arguments: a commit, and a directory.  Git checkout only needs a commit.
+- It will take two arguments: a commit, and a directory.  Git checkout
+  only needs a commit.
 
-- It will then instantiate the tree in the directory, *if and only if the directory is empty*.  Git is full of safeguards to avoid deleting data, which would be too complicated and unsafe to try to reproduce in wyag.  Since the point of wyag is to demonstrate git, not to produce a working implementation, this limitation is acceptable.
+- It will then instantiate the tree in the directory, *if and only if
+  the directory is empty*.  Git is full of safeguards to avoid
+  deleting data, which would be too complicated and unsafe to try to
+  reproduce in wyag.  Since the point of wyag is to demonstrate git,
+  not to produce a working implementation, this limitation is
+  acceptable.
 
 Let's get started.  As usual, we need a subparser:
 
@@ -1579,6 +1699,7 @@ And a function to do the actual work:
               os.mkdir(dest)
               tree_checkout(repo, obj, dest)
           elif obj.fmt == b'blob':
+              # @TODO Support symlinks (identified by mode 12****)
               with open(dest, 'wb') as f:
                   f.write(obj.blobdata)
 #+END_SRC
@@ -1588,6 +1709,13 @@ And a function to do the actual work:
 :PROPERTIES:
 :CUSTOM_ID: cmd-show-ref
 :END:
+
+As of now, the only way we can refer to objects is by their full
+hexadecimal identifier.  In git, we actually rarely see those, except
+to talk about a specific commit.  But in general, we're talking about
+HEAD, about some branch called names like =main= or
+=feature/more-bombs=, and so on.  This is handled by a simple
+mechanism called references.
 
 Git references, or refs, are probably the most simple type of things
 git holds.  They live in subdirectories of =.git/refs=, and are text
@@ -1606,34 +1734,37 @@ an object, in which case they look like this:
 #+END_EXAMPLE
 
 #+BEGIN_note
-*Direct and indirect references*
+  *Direct and indirect references*
 
-From now on, I will call a reference of the form =ref:
-path/to/other/ref= an *indirect* reference, and a ref with a SHA-1
-object ID a *direct reference*.
+  From now on, I will call a reference of the form =ref:
+  path/to/other/ref= an *indirect* reference, and a ref with a SHA-1
+  object ID a *direct reference*.
 #+END_note
 
-This whole section will describe the uses of refs.  For now, all that
-matter is this:
+This section will describe the uses of refs.  For now, all that matter
+is this:
 
 - they're text files, in the =.git/refs= hierarchy;
-- they hold the sha-1 identifier of an object, or a reference to
-  another reference.
+- they hold the SHA-1 identifier of an object, or a reference to
+  another reference, ultimately to a SHA-1 (no loops!)
 
 To work with refs, we're first going to need a simple recursive solver
-that will take a ref name, follow eventual recursive references
-(refs whose content begin with =ref:=, as exemplified above) and return
-a SHA-1:
+that will take a ref name, follow eventual recursive references (refs
+whose content begin with =ref:=, as exemplified above) and return a
+SHA-1 identifier:
 
 #+BEGIN_SRC python :tangle libwyag.py
   def ref_resolve(repo, ref):
       path = repo_file(repo, ref)
-      # Recursive references may fail in one case: we're following HEAD
-      # an a new repository with no commits.  In that case, .git/HEAD
-      # points to ref: refs/heads/main, but .git/refs/heads/main doesn't
-      # exist yet (since there's no commit for it to refer to)
+
+      # Sometimes, an indirect reference may be broken.  This is normal
+      # in one specific case: we're looking for HEAD on a new repository
+      # with no commits.  In that case, .git/HEAD points to "ref:
+      # refs/heads/main", but .git/refs/heads/main doesn't exist yet
+      # (since there's no commit for it to refer to).
       if not os.path.isfile(path):
           return None
+
       with open(path, 'r') as fp:
           data = fp.read()[:-1]
           # Drop final \n ^^^^^
@@ -1644,8 +1775,8 @@ a SHA-1:
 #+END_SRC
 
 Let's create two small functions, and implement the =show-refs=
-command.  First, a stupid recursive function to collect refs
-and return them as a dict:
+command --- it just lists all references in a repository.  First, a
+stupid recursive function to collect refs and return them as a dict:
 
 #+BEGIN_SRC python :tangle libwyag.py
   def ref_list(repo, path=None):
@@ -1663,6 +1794,8 @@ and return them as a dict:
 
       return ret
 #+END_SRC
+
+And, as usual, a subparser, a bridge, and a (recursive) worker function:
 
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser("show-ref", help="List references.")
@@ -1683,7 +1816,10 @@ and return them as a dict:
               show_ref(repo, v, with_hash=with_hash, prefix="{0}{1}{2}".format(prefix, "/" if prefix else "", k))
 #+END_SRC
 
-** What's a tag?
+** Tags as references
+:PROPERTIES:
+:CUSTOM_ID: tags
+:END:
 
 The most simple use of refs is tags.  A tag is just a user-defined
 name for an object, often a commit.  A very common use of tags is
@@ -1709,13 +1845,16 @@ equivalent:
 #+END_src
 
 #+begin_note
-Versions are a common use of tags, but like almost everything in
-Git, tags have no predefined semantics: they mean whatever you want
-them to mean, and can point to whichever object you want, you can
-even tag /blobs/!
+  Versions are a common use of tags, but like almost everything in
+  Git, tags have no predefined semantics: they mean whatever you want
+  them to mean, and can point to whichever object you want, you can
+  even tag /blobs/!
 #+end_note
 
-** Parsing tag objects
+** Lightweight tags and tag objects, and parsing the latter
+:PROPERTIES:
+:CUSTOM_ID: GitTag
+:END:
 
 You've probably guessed already that tags are actually refs.  They
 live in the =.git/refs/tags/= hierarchy.  The only point worth noting is
@@ -1744,7 +1883,7 @@ And now we support tags.
 :CUSTOM_ID: cmd-tag
 :END:
 
-Let's add the tag command.  In Git, it does two things: it creates a
+Let's add the =tag= command.  In Git, it does two things: it creates a
 new tag or list existing tags (by default).  So you can invoke it with:
 
 #+BEGIN_src shell
@@ -1800,11 +1939,11 @@ on whether or not =name= is provided.
 And we just need one more function to actually create the tag:
 
 #+begin_src python :tangle libwyag.py
-  def tag_create(repo, name, reference, type):
+  def tag_create(repo, name, ref, create_tag_object=False):
       # get the GitObject from the object reference
-      sha = object_find(repo, reference)
+      sha = object_find(repo, ref)
 
-      if type=="object":
+      if create_tag_object:
           # create tag object (commit)
           tag = GitTag(repo)
           tag.kvlm = collections.OrderedDict()
@@ -1812,9 +1951,10 @@ And we just need one more function to actually create the tag:
           tag.kvlm[b'type'] = b'commit'
           tag.kvlm[b'tag'] = name.encode()
           # Feel free to let the user give their name!
+          # Notice you can fix this after commit, read on!
           tag.kvlm[b'tagger'] = b'Wyag <wyag@example.com>'
           # …and a tag message!
-          tag.kvlm[b''] = b"A tag generated by wyag, which won't let you customize the message!"
+          tag.kvlm[None] = b"A tag generated by wyag, which won't let you customize the message!"
           tag_sha = object_write(tag)
           # create reference
           ref_create(repo, "tags/" + name, tag_sha)
@@ -1828,28 +1968,34 @@ And we just need one more function to actually create the tag:
 #+end_src
 
 ** What's a branch?
+:PROPERTIES:
+:CUSTOM_ID: branches
+:END:
+
+Tags are done.  Now for another big chunk: branches.
 
 It's time to address the elephant in the room: like most Git users,
 wyag still doesn't have any idea what a branch is.  It currently
 treats a repository as a bunch of disorganized objects, some of them
 commits, and has no representation whatsoever of the fact that commits
 are grouped in branches, and that at every point in time there's a
-commit that's =HEAD=, /ie/, the *head* commit of the *current* branch.
+commit that's =HEAD=, /ie/, the *head* commit (or "tip") of the
+*active* branch.
 
-Now, what's a branch?  The answer is actually surprisingly simple, but
-it may also end up being simply surprising: *a branch is a reference to
-a commit*.  You could even say that a branch is a kind of a name for a
-commit.  In this regard, a branch is exactly the same thing as a tag.
-Tags are refs that live in =.git/refs/tags=, branches are refs that live
-in  =.git/refs/heads=.
+So, what's a branch?  The answer is actually surprisingly simple, but
+it may also end up being simply surprising: *a branch is a reference
+to a commit*.  You could even say that a branch is a kind of a name
+for a commit.  In this regard, a branch is exactly the same thing as a
+tag.  Tags are refs that live in =.git/refs/tags=, branches are refs
+that live in =.git/refs/heads=.
 
 There are, of course, differences between a branch and a tag:
 
 1. Branches are references to a /commit/, tags can refer to any object;
-2. But most importantly, the branch ref is updated at each commit.  This means
+2. Most importantly, the branch ref is updated at each commit.  This means
    that whenever you commit, Git actually does this:
-   1. a new commit object is created, with the current branch's ID as
-      its parent;
+   1. a new commit object is created, with the current branch's
+      (commit!) ID as its parent;
    2. the commit object is hashed and stored;
    3. the branch ref is updated to refer to the new commit's hash.
 
@@ -1861,17 +2007,17 @@ ref file outside of the =refs= hierarchy, in =.git/HEAD=, which is an
 not a simple hash).
 
 #+begin_note
-*Detached HEAD*
+  *Detached HEAD*
 
-When you just checkout a random commit, git will warn you it's in
-"detached HEAD state".  This means you're not on any branch
-anymore.  In this case, =.git/HEAD= is a *direct* reference: it
-contains a SHA-1.
+  When you just checkout a random commit, git will warn you it's in
+  "detached HEAD state".  This means you're not on any branch anymore.
+  In this case, =.git/HEAD= is a *direct* reference: it contains a
+  SHA-1.
 #+end_note
 
 ** Referring to objects: the =object_find= function
 :PROPERTIES:
-:CUSTOM_ID: func-object_find
+:CUSTOM_ID: object_find
 :END:
 
 *** Resolving names
@@ -1886,7 +2032,7 @@ example, with =HEAD=, it will return the hash of the head commit of the
 current branch, etc.  More precisely, this name resolution function
 will work like this:
 
-- If =name= is HEAD, it will just resolve =.git/HEAD=;
+- If =name= is =HEAD=, it will just resolve =.git/HEAD=;
 - If =name= is a full hash, this hash is returned unmodified.
 - If =name= looks like a short hash, it will collect objects whose full
   hash begin with this short hash.
@@ -1899,11 +2045,11 @@ possible meanings of the name and raise an error if we've found more
 than 1.
 
 #+begin_info
-*Short hashes*
+  *Short hashes*
 
-For convenience, Git allows to refer to hashes by a prefix of their
-name.  For example, =5bd254aa973646fa16f66d702a5826ea14a3eb45= can be
-referred to as =5bd254=.  This is called a "short hash".
+  For convenience, Git allows to refer to hashes by a prefix of their
+  name.  For example, =5bd254aa973646fa16f66d702a5826ea14a3eb45= can
+  be referred to as =5bd254=.  This is called a "short hash".
 #+end_info
 
 #+BEGIN_SRC python :tangle libwyag.py
@@ -1913,10 +2059,10 @@ referred to as =5bd254=.  This is called a "short hash".
   This function is aware of:
 
    - the HEAD literal
-   - short and long hashes
-   - tags
-   - branches
-   - remote branches"""
+      - short and long hashes
+      - tags
+      - branches
+      - remote branches"""
       candidates = list()
       hashRE = re.compile(r"^[0-9A-Fa-f]{4,40}$")
 
@@ -1928,13 +2074,10 @@ referred to as =5bd254=.  This is called a "short hash".
       if name == "HEAD":
           return [ ref_resolve(repo, "HEAD") ]
 
+      # If it's a hex string, try for a hash.
       if hashRE.match(name):
-          if len(name) == 40:
-              # This is a complete hash
-              return [ name.lower() ]
-
-          # This is a small hash 4 seems to be the minimal length
-          # for git to consider something a short hash.
+          # This may be a hash, either small or full.  4 seems to be the
+          # minimal length for git to consider something a short hash.
           # This limit is documented in man git-rev-parse
           name = name.lower()
           prefix = name[0:2]
@@ -1943,7 +2086,18 @@ referred to as =5bd254=.  This is called a "short hash".
               rem = name[2:]
               for f in os.listdir(path):
                   if f.startswith(rem):
+                      # Notice a string startswith() itself, so this
+                      # works for full hashes.
                       candidates.append(prefix + f)
+
+      # Try for references.
+      as_tag = ref_resolve(repo, "refs/tags/" + name)
+      if as_tag: # Did we find a tag?
+          candidates.append(as_tag)
+
+      as_branch = ref_resolve(repo, "refs/heads/" + name)
+      if as_branch: # Did we find a branch?
+          candidates.append(as_branch)
 
       return candidates
 #+END_SRC
@@ -1955,58 +2109,74 @@ handle trivial cases, this is a very simple iterative process:
 - If we have a tag and =fmt= is anything else, we follow the tag.
 - If we have a commit and =fmt= is tree, we return this commit's tree
   object
-- In all other situations, we abort.
+- In all other situations, we bail out: nothing else makes sense.
 
 (The process is iterative because it may take an undefined number of
 steps, since tags themselves can be tagged)
 
 #+BEGIN_SRC python :tangle libwyag.py
   def object_find(repo, name, fmt=None, follow=True):
-      sha = object_resolve(repo, name)
+        sha = object_resolve(repo, name)
 
-      if not sha:
-          raise Exception("No such reference {0}.".format(name))
+        if not sha:
+            raise Exception("No such reference {0}.".format(name))
 
-      if len(sha) > 1:
-          raise Exception("Ambiguous reference {0}: Candidates are:\n - {1}.".format(name,  "\n - ".join(sha)))
+        if len(sha) > 1:
+            raise Exception("Ambiguous reference {0}: Candidates are:\n - {1}.".format(name,  "\n - ".join(sha)))
 
-      sha = sha[0]
+        sha = sha[0]
 
-      if not fmt:
-          return sha
+        if not fmt:
+            return sha
 
-      while True:
-          obj = object_read(repo, sha)
+        while True:
+            obj = object_read(repo, sha)
+            #     ^^^^^^^^^^^ < this is a bit agressive: we're reading
+            # the full object just to get its type.  And we're doing
+            # that in a loop, albeit normally short.  Don't expect
+            # high performance here.
 
-          if obj.fmt == fmt:
-              return sha
+            if obj.fmt == fmt:
+                return sha
 
-          if not follow:
-              return None
+            if not follow:
+                return None
 
-          # Follow tags
-          if obj.fmt == b'tag':
-              sha = obj.kvlm[b'object'].decode("ascii")
-          elif obj.fmt == b'commit' and fmt == b'tree':
-              sha = obj.kvlm[b'tree'].decode("ascii")
-          else:
-              return None
+            # Follow tags
+            if obj.fmt == b'tag':
+                  sha = obj.kvlm[b'object'].decode("ascii")
+            elif obj.fmt == b'commit' and fmt == b'tree':
+                  sha = obj.kvlm[b'tree'].decode("ascii")
+            else:
+                return None
 #+END_SRC
+
+With the new =object_find()=, the CLI wyag becomes a bit more usable.  You can now do things like:
+
+#+begin_example
+$ wyag checkout v3.11 # A tag
+$ wyag checkout feature/explosions # A branch
+$ wyag ls-tree -r HEAD # The active branch or commit.  There's also a
+                       # follow here: HEAD is actually a commit.
+$ wyag cat-file blob e0695f # A short hash
+$ wyag cat-file tree master # A branch, as a tree (another "follow")
+#+end_example
 
 *** The rev-parse command
 :PROPERTIES:
 :CUSTOM_ID: cmd-rev-parse
 :END:
 
-The =git rev-parse= commands does a lot, but one of its use cases is
-solving revision (commits) references.  For the purpose of testing the
-"follow" feature of =object_find=, we'll add an optional =wyag-type=
-arguments to its interface.
+Let's implement =wyag rev-parse=.  The =git rev-parse= commands does a
+lot, but one of its use cases, the one we're going to clone, is
+solving references.  For the purpose of further testing the "follow"
+feature of =object_find=, we'll add an optional =wyag-type= arguments
+to its interface.
 
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser(
       "rev-parse",
-      help="Parse revision (or other objects )identifiers")
+      help="Parse revision (or other objects) identifiers")
 
   argsp.add_argument("--wyag-type",
                      metavar="type",
@@ -2018,6 +2188,8 @@ arguments to its interface.
   argsp.add_argument("name",
                      help="The name to parse")
 #+END_SRC
+
+The bridge does all the job:
 
 #+BEGIN_SRC python :tangle libwyag.py
   def cmd_rev_parse(args):
@@ -2031,23 +2203,34 @@ arguments to its interface.
       print (object_find(repo, args.name, fmt, follow=True))
 #+END_SRC
 
-* The staging area and the index file (part 1: reading)
+And it works:
+
+#+begin_example
+$ wyag rev-parse --wyag-type commit HEAD
+6c22393f5e3830d15395fd8d2f8b0cf8eb40dd58
+$ wyag rev-parse --wyag-type tree HEAD
+11d33fad71dbac72840aff1447e0d080c7484361
+$ wyag rev-parse --wyag-type tree HEAD
+None
+#+end_example
+
+* Working with the staging area and the index file
+:PROPERTIES:
+:CUSTOM_ID: staging-area
+:END:
 
 ** What's the index file?
-# Creating commits /could/ just have been a matter of creating a bunch
-# of new tree objects (not just one, remember they're recursive), a
-# commit object pointing at the root tree object, and updating =HEAD= to
-# point to that commit --- and yes, we could do it like this, but Git
-# chooses a much more complicated road: the *staging area*, implemented in
-# the form of the *index file*.
+:PROPERTIES:
+:CUSTOM_ID: staging-intro
+:END:
 
-This final step will bring us to /prepare/ commits (creating them is
-for the next section!)
+This final step will bring us to where commits happen (although
+actually creating them is for the next section!)
 
-You probably know that to commit in Git, you first “stage” some
+You probably know that to commit in Git, you first "stage" some
 changes, using =git add= and =git rm=, and only /then/ do you commit
-them.  This intermediate stage between the last and the next commit is
-called the *staging area*.
+those changes.  This intermediate stage between the last and the next
+commit is called the *staging area*.
 
 It would seem natural to use a commit or tree object to represent the
 staging area, but Git actually and uses a completely different
@@ -2056,10 +2239,10 @@ mechanism, in the form of what it calls the *index file*.
 After a commit, the index file is a sort of copy of that commit: it
 holds the same path/blob association than the corresponding tree.  But
 it also holds extra information about files in the worktree, like
-their creation/modification time, so =git status= doesn't usually need
-to actually compare all files: it just checks that their modification
-time is the same as the one stored in the index file, and only if it
-isn't does it perform an actual comparison.
+their creation/modification time, so =git status= doesn't often need
+to actually compare files: it just checks that their modification time
+is the same as the one stored in the index file, and only if it isn't
+does it perform an actual comparison.
 
 You can thus consider the index file as a three-way association list:
 not only paths with blobs, but also paths with actual filesystem
@@ -2072,8 +2255,10 @@ whereas a tree is always a complete, unambiguous representation.
 When you commit, what git actually does is turn the index file into a
 new tree object.  To summarize:
 
- 1. When the repository is “clean”, the index file holds the exact same
-    contents as the HEAD commit, plus metadata about the corresponding filesystem entries.  For instance, it may contain something like:
+ 1. When the repository is “clean”, the index file holds the exact
+    same contents as the HEAD commit, plus metadata about the
+    corresponding filesystem entries.  For instance, it may contain
+    something like:
 
     #+begin_quote
     There's a file called =src/disp.c= whose contents are blob
@@ -2094,22 +2279,37 @@ new tree object.  To summarize:
     the index file, a new commit object is generated with that tree,
     branches are updated and we're done.
 
+#+begin_note
+  *A note on words*
+
+  The staging area and the index are thus the same thing, but the name
+  "staging area" is more the name of the git user-exposed feature
+  (that could have been implemented otherwise), the abstraction if you
+  will; while "index file" refers specifically to the way this
+  abstract feature is actually implemented in git.
+#+end_note
+
 ** Parsing the index
+:PROPERTIES:
+:CUSTOM_ID: index_read
+:END:
 
 The index file is by far the most complicated piece of data a Git
 repository can hold.  Its complete documentation can be found in Git
-source tree at =Documentation/gitformat-index.txt=; you can read it [[https://github.com/git/git/blob/master/Documentation/gitformat-index.txt][on
+source tree at =Documentation/gitformat-index.txt=; you can browse it [[https://github.com/git/git/blob/master/Documentation/gitformat-index.txt][on
 the Github mirror]].  It's made of three parts:
 
   - An header with the format version number and the number of entries
     the index holds;
-  - A series of entries, sorted, each representing a file;
+  - A series of entries, sorted, each representing a file; padded to
+    multiple of 8 bytes.
   - A series of optional extensions, which we'll ignore.
+# @FIXME ^ Sorted how? Do we need to think about this?
 
 The first thing we need to represent is a single entry.  It actually
 holds quite a lot of stuff, I'm leaving the details in comments.
-What's worth noticing is that an entry stores *both* the SHA1 of the
-associated glob in git's objects store and a ton of metadata about the
+It's worth observing that an entry stores *both* the SHA-1 of the
+associated blob in the object store /and/ a ton of metadata about the
 actual file on the actual filesystem.  Again, this is because
 =git/wyag status= will need to determine which files in the index were
 modified: it is much more efficient to begin by checking the
@@ -2122,36 +2322,39 @@ comparing actual files.
                    mode_type=None, mode_perms=None, uid=None, gid=None,
                    fsize=None, sha=None, flag_assume_valid=None,
                    flag_stage=None, name=None):
-        """The last time a file's metadata changed.  This is a tuple (seconds, nanoseconds)"""
+        # The last time a file's metadata changed.  This is a pair
+        # (timestamp in seconds, nanoseconds)
         self.ctime = ctime
-        """The last time a file's data changed.  This is a tuple (seconds, nanoseconds)"""
+        # The last time a file's data changed.  This is a pair
+        # (timestamp in seconds, nanoseconds)
         self.mtime = mtime
-        """The ID of device containing this file"""
+        # The ID of device containing this file
         self.dev = dev
-        """The file's inode number"""
+        # The file's inode number
         self.ino = ino
-        """The object type, either b1000 (regular), b1010 (symlink), b1110 (gitlink). """
+        # The object type, either b1000 (regular), b1010 (symlink),
+        # b1110 (gitlink).
         self.mode_type = mode_type
-        """The object permissions, an integer."""
+        # The object permissions, an integer.
         self.mode_perms = mode_perms
-        """User ID of owner"""
+        # User ID of owner
         self.uid = uid
-        """Group ID of ownner"""
+        # Group ID of ownner
         self.gid = gid
-        """Size of this object, in bytes"""
+        # Size of this object, in bytes
         self.fsize = fsize
-        """The object's SHA as a hex string"""
+        # The object's SHA
         self.sha = sha
         self.flag_assume_valid = flag_assume_valid
         self.flag_stage = flag_stage
-        """Length of the name if < 0xFFF (yes, three Fs), -1 otherwise"""
+        # Name of the object (full path this time!)
         self.name = name
 #+end_src
 
 The index file is a binary file, likely for performance reasons.  The
 format is reasonably simple, though.  It begins with a header with the
 =DIRC= magic bytes, a version number and the total number of entries
-in that index file.  We create the =GitIndex= object to hold them:
+in that index file.  We create the =GitIndex= class to hold them:
 
 #+BEGIN_SRC python :tangle libwyag.py
   class GitIndex (object):
@@ -2168,19 +2371,21 @@ in that index file.  We create the =GitIndex= object to hold them:
           self.entries = entries
 #+END_SRC
 
-And a reader to read index files into those objects.  After reading
+And a parser to read index files into those objects.  After reading
 the 12-bytes header, we just parse entries in the order they appear.
 An entry begins with a set of fixed-length data, followed by a
-variable-length name.  It begins with the usual file metadata:
-creation and modification time, mode, owner and group id, size, and an
-object hash of course, followed by a variable-length name, terminated
-by a NULL byte (0x00) (that's the path for that file).
+variable-length name.
 
 The code is quite straightforward, but as it's reading a binary
 format, it feels more messy than what we did so far.  We use the
 =int.from_bytes(bytes, endianness)= a lot to read raw bytes into an
 integer, and just a few bitwise operations to separate data
 that share the same byte.
+
+(This format was probably designed so index files could just be
+=mmapp()ed= to memory, and read directly as C structs, with an index
+built in O(n) time in most cases.  This kind of approach tends to
+produce more elegant code in C than in Python…)
 
 #+BEGIN_SRC python :tangle libwyag.py
   def index_read(repo):
@@ -2205,44 +2410,77 @@ that share the same byte.
       content = raw[12:]
       idx = 0
       for i in range(0, count):
+          # Read creation time, as a unix timestamp (seconds since
+          # 1970-01-01 00:00:00, the "epoch")
           ctime_s =  int.from_bytes(content[idx: idx+4], "big")
+          # Read creation time, as nanoseconds after that timestamps,
+          # for extra precision.
           ctime_ns = int.from_bytes(content[idx+4: idx+8], "big")
+          # Same for modification time: first seconds from epoch.
           mtime_s = int.from_bytes(content[idx+8: idx+12], "big")
+          # Then extra nanoseconds
           mtime_ns = int.from_bytes(content[idx+12: idx+16], "big")
+          # Device ID
           dev = int.from_bytes(content[idx+16: idx+20], "big")
+          # Inode
           ino = int.from_bytes(content[idx+20: idx+24], "big")
+          # Ignored.
           unused = int.from_bytes(content[idx+24: idx+26], "big")
           assert 0 == unused
           mode = int.from_bytes(content[idx+26: idx+28], "big")
           mode_type = mode >> 12
           assert mode_type in [0b1000, 0b1010, 0b1110]
           mode_perms = mode & 0b0000000111111111
+          # User ID
           uid = int.from_bytes(content[idx+28: idx+32], "big")
+          # Group ID
           gid = int.from_bytes(content[idx+32: idx+36], "big")
+          # Size
           fsize = int.from_bytes(content[idx+36: idx+40], "big")
+          # SHA (object ID).  We'll store it as a lowercase hex string
+          # for consistency.
           sha = format(int.from_bytes(content[idx+40: idx+60], "big"), "040x")
+          # Flags we're going to ignore
           flags = int.from_bytes(content[idx+60: idx+62], "big")
           # Parse flags
           flag_assume_valid = (flags & 0b1000000000000000) != 0
           flag_extended = (flags & 0b0100000000000000) != 0
           assert not flag_extended
           flag_stage =  flags & 0b0011000000000000
+          # Length of the name.  This is stored on 12 bits, some max
+          # value is 0xFFF, 4095.  Since names can occasionally go
+          # beyond that length, git treats 0xFFF as meaning at least
+          # 0xFFF, and looks for the final 0x00 to find the end of the
+          # name --- at a small, and probably very rare, performance
+          # cost.
           name_length = flags & 0b0000111111111111
 
-          null_idx = content.find(b'\x00', idx+62)
-          name = content[idx+62: null_idx].decode("utf8")
+          # We've read 62 bytes so far.
+          idx += 62
 
-          if len(name) < 0xFFF:
-              assert name_length == len(name)
+          if name_length < 0xFFF:
+              assert content[idx + name_length] == 0x00
+              raw_name = content[idx:idx+name_length]
+              idx += name_length + 1
           else:
-              assert name_length == 0xFFF
+              print("Notice: Name is 0x{:X} bytes long.".format(name_length))
+              # This probably wasn't tested enough.  It works with a
+              # path of exactly 0xFFF bytes.  Any extra bytes broke
+              # something between git, my shell and my filesystem.
+              null_idx = content.find(b'\x00', idx + 0xFFF)
+              raw_name = content[idx: null_idx]
+              idx = null_idx + 1
 
-          # Data is padded on multiple of eight bytes for pointer
-          # alignment, we skip as many bytes as we need for the next
+          # Just parse the name as utf8.
+          name = raw_name.decode("utf8")
+
+          # Data is padded on multiples of eight bytes for pointer
+          # alignment, so we skip as many bytes as we need for the next
           # read to start at the right position.
-          idx = null_idx + 1
+
           idx = 8 * ceil(idx / 8)
 
+          # And we add this entry to our list.
           entries.append(GitIndexEntry(ctime=(ctime_s, ctime_ns),
                                        mtime=(mtime_s,  mtime_ns),
                                        dev=dev,
@@ -2265,13 +2503,10 @@ that share the same byte.
 :CUSTOM_ID: cmd-ls-files
 :END:
 
-We'll keep =ls-files= very simple: just display the list of files in
-the index tree.  But we'll add a --verbose option that doesn't exist
-in git, just so we can display every single bit of info in the index
-file.
-
-This is just to show how to use the index, we'll put
-more complexity in =status=!
+=git ls-files= displays the names of files in the staging area, with,
+as usual, a ton of options.  Our =ls-files= will be much simpler,
+/but/ we'll add a =--verbose= option that doesn't exist in git, just
+so we can display every single bit of info in the index file.
 
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser("ls-files", help = "List all the stage files")
@@ -2309,11 +2544,11 @@ more complexity in =status=!
 #+END_SRC
 
 If you run ls-tree, you'll notice that on a “clean” worktree (an
-unmodified checkout of HEAD), it lists all files on HEAD.  The index
-is not a delta (a list of differences) from the HEAD commit, but
-starts as a copy of it, in a different format.
+unmodified checkout of =HEAD=), it lists all files on =HEAD=.  Again,
+the index is not a /delta/ (a set of differences) from the =HEAD=
+commit, but starts as a copy of it, in a different format.
 
-** The check-ignore command
+** A detour: the check-ignore command
 :PROPERTIES:
 :CUSTOM_ID: cmd-check-ignore
 :END:
@@ -2325,7 +2560,7 @@ We'll expose this support as the =check-ignore= command, which takes a
 list of paths and outputs back those of those paths that should be
 ignored.
 
-Again, the command parser is trivial :
+Again, the command parser is trivial:
 
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser("check-ignore", help = "Check path(s) against ignore rules.")
@@ -2343,22 +2578,24 @@ And the function is just as simple:
           print(path)
 #+END_src
 
-We'll begin by writing a reader for rules in ignore files.  The syntax
-of those rules is quite simple: each line in an ignore file is an
-exclusion pattern, files that match this pattern are ignored by
-=status=, =add= and so on.  There are three special cases:
+But of course, most of the function we call don't exist yet in wyag.
+We'll begin by writing a reader for rules in ignore files,
+=gitignore_read()=.  The syntax of those rules is quite simple: each
+line in an ignore file is an exclusion pattern, so files that match
+this pattern are ignored by =status=, =add -A= and so on.  There are
+three special cases, though:
 
  1. Lines that begin with an exclamation mark =!= /negate/ the pattern
-    (files that match this pattern are /included/, even if other
-    patterns would exclude them)
- 2. Lines that begin with a dash =#= are comments, and are ignored.
- 2. A backslash =\= at the beginning of
+    (files that match this pattern are /included/, even they were
+    ignored by an earlier pattern)
+ 2. Lines that begin with a dash =#= are comments, and are skipped.
+ 2. A backslash =\= at the beginning treats =!= and =#= as literal
+    characters.
 
 First, a parser for a single pattern. This parser returns a pair: the
-pattern itself, and a boolean to indicate if the pattern should
-/exclude/ matching files (=True=) or include them back (=False=).  In
-other words, =False= if the pattern did start with =!=, =True=
-otherwise.
+pattern itself, and a boolean to indicate if files matching the
+pattern /should/ be excluded (=True=) or included (=False=).  In other
+words, =False= if the pattern did start with =!=, =True= otherwise.
 
 #+begin_src python :tangle libwyag.py
   def gitignore_parse1(raw):
@@ -2374,9 +2611,10 @@ otherwise.
           return (raw, True)
 #+end_src
 
-Parsing a file is just collecting all rules in that file.  Notice we
-don't parse a file, but a list of lines: that's because we'll need to
-read rules from git blobs as well, and not just regular files.
+Parsing a file is just collecting all rules in that file.  Notice this
+function doesn't parse /files/, but just lists of lines: that's
+because we'll need to read rules from git blobs as well, and not just
+regular files.
 
 #+begin_src python :tangle libwyag.py
   def gitignore_parse(lines):
@@ -2394,17 +2632,18 @@ Last thing we need to do is collect the various ignore files.  They
 come in two kinds:
 
  - Some of these files *live in the index*: they're the various
-   =gitignore= files.  Emphasis on the plural; although there's
-   usually only one such file, at the root, there can be one in each
+   =gitignore= files.  Emphasis on the plural; although there often is
+   only one such file, at the root, there can be one in each
    directory, and it applies to this directory and its subdirectories.
-   I call those “scoped”, because they only apply to paths under their
-   directory.
+   I'll call those *scoped*, because they only apply to paths under
+   their directory.
  - The others live *outside the index*.  They're the global ignore
    file (usually in =~/.config/git/ignore=) and the
-   repository-specific =.git/info/exclude=.  I call those “absolute”
+   repository-specific =.git/info/exclude=.  I call those *absolute*,
+   because they apply everywhere, but at a lower priority.
 
-Again, a class to hold that: a list of absolute rules, a dict (a
-hashmap) of relative rules.  The keys to this hashmap are
+Again, a class to hold that: a list of absolute rules, a dict
+(hashmap) of relative rules.  The keys to this hashmap are
 *directories*, relative to the root of a worktree.
 
 #+begin_src python :tangle libwyag.py
@@ -2417,11 +2656,17 @@ hashmap) of relative rules.  The keys to this hashmap are
           self.scoped = scoped
 #+end_src
 
+And finally our function to collect all gitignore rules in a
+repository, and return a =GitIgnore= object.  Notice how it reads
+scoped files from the index, and not the worktree: only /staged/
+=.gitignore= files matter (also remember: HEAD is /already/ staged ---
+the staging area is a copy, not a delta).
+
 #+begin_src python :tangle libwyag.py
   def gitignore_read(repo):
       ret = GitIgnore(absolute=list(), scoped=dict())
 
-      # Local configuration in .git/info/exclude
+      # Read local configuration in .git/info/exclude
       repo_file = os.path.join(repo.gitdir, "info/exclude")
       if os.path.exists(repo_file):
           with open(repo_file, "r") as f:
@@ -2460,13 +2705,14 @@ work:
    farthest.  That is, if the path is
    =src/support/w32/legacy/sound.c~=, it will first look for rules in
    =src/support/w32/legacy/.gitignore=, then
-   =src/support/w32/.gitignore=, and so on up to simply =.gitignore"=.
+   =src/support/w32/.gitignore=, =src/support/.gitignore=, and so on
+   up to simply =.gitignore"= at the root.
  - If nothing matches, it will continue with the *absolute* rules.
 
 We write three small support functions.  One to match a path against a
 set of rules, and return the result of the last matching rule.  Notice
 how it's not a real boolean functions, since it has *three* possible
-return values: =True=, =False= but also =None=.  It returns None if
+return values: =True=, =False= but also =None=.  It returns =None= if
 nothing matched, so the caller knows it should continue trying with
 more general ignore files (eg, go one directory level up).
 
@@ -2482,7 +2728,15 @@ more general ignore files (eg, go one directory level up).
 A function to match against the dictionary of *scoped* rules (the
 various =.gitignore= files).  It just starts at the path's directory
 then moves up to the parent directory, recursively, until it has
-tested root.
+tested root.  Notice that this function (and the next two as well),
+never breaks *inside* a given =.gitignore= file.  Even if a rule
+matches, they keep going through the file, because another rule there
+may negate reverse the effect (rules are processed in order, so if you
+want to exclude =*.c= but not =generator.c=, the general rule must
+come before the specific one).  But as soon as at least one rule
+matched in a file, we drop the remaining files, because a more general
+file never cancels the effect of a more specific one (this is why
+=check_ignore1= is ternary and not boolean)
 
 #+begin_src python :tangle libwyag.py
   def check_ignore_scoped(rules, path):
@@ -2512,7 +2766,7 @@ Notice that the order we push those rules to the list matters (we
       return False # This is a reasonable default at this point.
 #+end_src
 
-And finally, a function to bind them all:
+And finally, a function to bind them all.
 
 #+begin_src python :tangle libwyag.py
   def check_ignore(rules, path):
@@ -2526,18 +2780,38 @@ And finally, a function to bind them all:
       return check_ignore_absolute(rules.absolute, path)
 #+end_src
 
+You can now call =wyag check-ignore=.  On its own source tree:
+
+#+begin_example
+  $ wyag check-ignore hello.el hello.elc hello.html wyag.zip wyag.tar
+  hello.elc
+  hello.html
+  wyag.zip
+#+end_example
+
+#+begin_warning
+  *This is only an approximation*
+
+  This isn't a perfect reimplementation.  In particular, excluding
+  whole directories with a rule that's only the directory name (eg
+  =__pycache__=) won't work, because =fnmatch= would want the pattern
+  as =__pycache__/**=.  If you really want to play with ignore rules,
+  [[https://github.com/mherrmann/gitignore_parser][this may be a good
+  starting point]].
+#+end_warning
+
 ** The status command
 :PROPERTIES:
 :CUSTOM_ID: cmd-status
 :END:
 
 =status= is more complex than =ls-files=, because it needs to compare
-the index with the actual filesystem.  You call =git status= to know
-which files were added, removed or modified since the last commit, and
-which of these changes are actually staged, and will make it to the
-next commit.  So =status= actually compares the =HEAD= with the
-staging area, and the staging area with the worktree.  This is what
-the output of =git status= looks like:
+the index with both HEAD /and/ the actual filesystem.  You call =git
+status= to know which files were added, removed or modified since the
+last commit, and which of these changes are actually staged, and will
+make it to the next commit.  So =status= actually compares the =HEAD=
+with the staging area, and the staging area with the worktree.  This
+is what its output looks like:
 
 #+begin_example
 On branch master
@@ -2560,9 +2834,8 @@ Untracked files:
 We'll implement =status= in three parts: first the active branch or
 “detached HEAD”, then the difference between the index and the
 worktree (“Changes not staged for commit”), then the difference
-between HEAD and the index (“Changes to be committed”).  Because this
-is a bit heavy, we leave the public interface and the bridge function
-[[#status-public-interface][to the very end]].
+between HEAD and the index (“Changes to be committed” and “Untracked
+files”).
 
 The public interface is dead simple, our status will take no argument:
 
@@ -2571,9 +2844,6 @@ The public interface is dead simple, our status will take no argument:
 #+END_src
 
 And the bridge function just calls the three component functions in order:
-
-
-The public interface is dead simple, our status will take no argument:
 
 #+BEGIN_SRC python :tangle libwyag.py
   def cmd_status(_):
@@ -2622,12 +2892,14 @@ branch, or the hash of the detached HEAD:
 
 The second block of the status output is the “changes to be
 committed”, that is, how the staging area differs from HEAD.  To do
-this, we're going first to read the HEAD tree, and built two dicts
-(hashmaps) associating paths to blobs.  Then we'll just compare those
-dicts and output their differences.
+this, we're going first to read the =HEAD= tree, and flatten it as a
+single dict (hashmap) with full paths as keys, so it's closer to the
+(flat) index associating paths to blobs.  Then we'll just compare
+them and output their differences.
 
-First, a function to convert a tree to a dictionary.  Trees are
-recursive, so the function itself is --- sorry about that :)
+First, a function to convert a tree (recursive, remember) to a (flat)
+dict.  And since trees are recursive, so the function itself is, again ---
+sorry about that :)
 
 #+begin_src python :tangle libwyag.py
   def tree_to_dict(repo, ref, prefix=""):
@@ -2641,33 +2913,31 @@ recursive, so the function itself is --- sorry about that :)
         # We read the object to extract its type (this is uselessly
         # expensive: we could just open it as a file and read the
         # first few bytes)
-        leaf_type = object_read(repo, leaf.sha).fmt
+        is_subtree = leaf.mode.startswith(b'04')
 
         # Depending on the type, we either store the path (if it's a
         # blob, so a regular file), or recurse (if it's another tree,
         # so a subdir)
-        match leaf_type:
-            case b"tree":
-                # Recurse and merge
-                ret.update(tree_to_dict(repo, leaf.sha, full_path))
-            case b"blob":
-                ret[full_path] = leaf.sha
+        if is_subtree:
+          ret.update(tree_to_dict(repo, leaf.sha, full_path))
+        else:
+          ret[full_path] = leaf.sha
 
     return ret
 #+end_src
+
+And the command itself:
 
 #+begin_src python :tangle libwyag.py
   def cmd_status_head_index(repo, index):
       print("Changes to be committed:")
 
       head = tree_to_dict(repo, "HEAD")
-
       for entry in index.entries:
           if entry.name in head:
               if head[entry.name] != entry.sha:
                   print("  modified:", entry.name)
               del head[entry.name] # Delete the key
-
           else:
               print("  added:   ", entry.name)
 
@@ -2732,6 +3002,8 @@ recursive, so the function itself is --- sorry about that :)
       print("Untracked files:")
 
       for f in all_files:
+          # @TODO If a full directory is untracked, we should display
+          # its name without its contents.
           if not check_ignore(ignore, f):
               print(" ", f)
 #+end_src
@@ -2756,51 +3028,57 @@ The real =status= is a lot smarter: it can detect renames, for
 example, where ours cannot.  Another significant difference worth
 mentioning is that =git status= actually /writes/ the index back if a
 file metadata was modified, but not its content.  You can see it with
-ls-files:
+our special ls-files:
 
-#+begin_example
-$ wyag ls-files --verbose
-Index file format v2, containing 1 entries.
-file
-  regular file with perms: 644
-  on blob: f2f279981ce01b095c42ee7162aadf60185c8f67
-  created: 2023-07-18 18:26:15.771460869, modified: 2023-07-18 18:26:15.771460869
-  device: 65026, inode: 10619317
-  user: thblt (1000)  group: users (100)
-  flags: stage=0 assume_valid=False
-$ touch file
-$ git status > /dev/null
-$ wyag ls-files --verbose
-Index file format v2, containing 1 entries.
-file
-  regular file with perms: 644
-  on blob: f2f279981ce01b095c42ee7162aadf60185c8f67
-  created: 2023-07-18 18:26:41.421743098, modified: 2023-07-18 18:26:41.421743098
-…
-#+end_example
+  #+begin_example
+  $ wyag ls-files --verbose
+  Index file format v2, containing 1 entries.
+  file
+    regular file with perms: 644
+    on blob: f2f279981ce01b095c42ee7162aadf60185c8f67
+    created: 2023-07-18 18:26:15.771460869, modified: 2023-07-18 18:26:15.771460869
+    ...
+  $ touch file
+  $ git status > /dev/null
+  $ wyag ls-files --verbose
+  Index file format v2, containing 1 entries.
+  file
+    regular file with perms: 644
+    on blob: f2f279981ce01b095c42ee7162aadf60185c8f67
+    created: 2023-07-18 18:26:41.421743098, modified: 2023-07-18 18:26:41.421743098
+    ...
+  #+end_example
 
-Notice how both timestamps, in the from the index file, were updated
-to reflect the changes in the real file's metadata.
+Notice how both timestamps, from the /index file/, were updated by
+=git status= to reflect the changes in the real file's metadata.
 
 * Staging area and index, part 2: staging and committing
+:PROPERTIES:
+:CUSTOM_ID: committing
+:END:
 
-Let's.  Create.  Commits.
+OK.  Let's create commits.
 
-OK, we have almost everything we need to *create* commits, except for three things:
+We have /almost/ everything we need for that, except for three last
+things:
 
- 1. We need to be able to write a modified index back, since we commit
-    /from the index/, and the point of creating commits is that
-    they're different from the previous commit, right?
- 2. We need to have commands to modify the index: that's =add= and =rm=.
+ 1. We need commands to modify the index, so our commits aren't just a
+    copy of their parent.  Those commands are =add= and =rm=.
+ 2. These commands need to write the modified index back, since we
+    commit /from the index/.
  3. And obviously, we'll need the =commit= function and its associated
     =wyag commit= command.
 
 ** Writing the index
+:PROPERTIES:
+:CUSTOM_ID: index_write
+:END:
 
-So, let's start by writing the index back.  Roughly, we're just
-serializing everything back to binary.  This is a bit tedious, but the
-code should be straightforward.  I'm leaving the gory details for the
-comments.
+We'll start by writing the index.  Roughly, we're just serializing
+everything back to binary.  This is a bit tedious, but the code should
+be straightforward.  I'm leaving the gory details for the comments,
+but it's really just =index_read= in reverse --- refer to it if
+needed, and the =GitIndexEntry= class.
 
 #+begin_src python :tangle libwyag.py
   def index_write(repo, index):
@@ -2840,10 +3118,11 @@ comments.
               flag_assume_valid = 0x1 << 15 if e.flag_assume_valid else 0
 
               name_bytes = e.name.encode("utf8")
-              if len(name_bytes) > 0xFFF:
+              bytes_len = len(name_bytes)
+              if bytes_len >= 0xFFF:
                   name_length = 0xFFF
               else:
-                  name_length = len(name_bytes)
+                  name_length = bytes_len
 
               # We merge back three pieces of data (two flags and the
               # length of the name) on the same two bytes.
@@ -2881,7 +3160,7 @@ is what the =git rm= command does.
 =rm= takes a single argument, a list of paths to remove:
 
 #+BEGIN_SRC python :tangle libwyag.py
-  argsp = argsubparsers.add_parser("rm", help = "Remove files from the working tree and the index.")
+  argsp = argsubparsers.add_parser("rm", help="Remove files from the working tree and the index.")
   argsp.add_argument("path", nargs="+", help="Files to remove")
 
   def cmd_rm(args):
@@ -2889,7 +3168,7 @@ is what the =git rm= command does.
     rm(repo, args.path)
 #+END_src
 
-The function is a bit long, but it's very simple.  It takes a
+The =rm= function is a bit long, but it's very simple.  It takes a
 repository and a list of paths, reads that repository index, and
 removes entries in the index that match this list.  The optional
 arguments control whether the function should actually delete the
@@ -2936,7 +3215,7 @@ exposed in the =wyag rm= command).
     index_write(repo, index)
 #+END_SRC
 
-And we can now delete files!
+And we can now delete files with =wyag rm=.
 
 ** The add command
 :PROPERTIES:
@@ -2987,7 +3266,12 @@ in the index's field.
       relpath = os.path.relpath(abspath, repo.worktree)
       clean_paths.append((abspath,  relpath))
 
-      # Find and read the index.  It was modified
+      # Find and read the index.  It was modified by rm.  (This isn't
+      # optimal, good enough for wyag!)
+      #
+      # @FIXME, though: we could just
+      # move the index through commands instead of reading and writing
+      # it again.
       index = index_read(repo)
 
       for (abspath, relpath) in clean_paths:
@@ -3011,24 +3295,10 @@ in the index's field.
       index_write(repo, index)
 #+END_SRC
 
-** Turning indexes into trees                                     :noexport:
-
-The hard part of creating a commit is that we need to convert the
-index to a series of tree objects.  /A series/, because if you
-remember trees, they're a recursive structure: a tree represents a
-single directory, and links to other trees for subdirectories.  The
-index is flat: each blob is associated to a full path.
-
 ** The commit command
 :PROPERTIES:
 :CUSTOM_ID: cmd-commit
 :END:
-
-#+begin_warning
-  *Work in progress*
-
-  Commit is coming soon! (July 2023)
-#+end_warning
 
 To commit a set of changes, we need to turn the current index into a
 tree object, generate and store the corresponding commit object, and
@@ -3150,12 +3420,13 @@ The function to create a commit object is simple enough, it just takes a few arg
 
         commit.kvlm[b"author"] = author.encode("utf8")
         commit.kvlm[b"committer"] = author.encode("utf8")
-        commit.kvlm[b''] = message.encode("utf8")
+        commit.kvlm[None] = message.encode("utf8")
 
         return object_write(commit, repo)
 #+end_src
 
-And finally, the actual =cmd_commit=, the bridge to the =wyag commit= command:
+And finally, we write the actual =cmd_commit=, the bridge function to
+the =wyag commit= command:
 
 #+begin_src python :tangle libwyag.py
   def cmd_commit(args):
@@ -3239,7 +3510,6 @@ You should have received a copy of the GNU General Public License
 along with Wyag.  If not, see <http://www.gnu.org/licenses/>.
 
 * Footnotes
-[fn:2] I learned that the hard way.
 
 [fn:1] You may know that [[https://shattered.io/][collisions have been discovered in SHA-1]].
 Git actually doesn't use SHA-1 anymore: it uses a [[https://github.com/git/git/blob/26e47e261e969491ad4e3b6c298450c061749c9e/Documentation/technical/hash-function-transition.txt#L34-L36][hardened variant]]
