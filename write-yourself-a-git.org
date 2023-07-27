@@ -2153,7 +2153,10 @@ in that index file.  We create the =GitIndex= object to hold them:
       # ext = None
       # sha = None
 
-      def __init__(self, version, entries):
+      def __init__(self, version=2, entries=None):
+          if not entries:
+              entries = list()
+
           self.version = version
           self.entries = entries
 #+END_SRC
