@@ -1139,10 +1139,23 @@ I use KVLM to mean "Key-Value List with Message".
       return kvlm_parse(raw, start=end+1, dct=dct)
 #+END_SRC
 
-We use an =OrderedDict= here because =cat-file=, as we've implemented it,
-will print a commit object by parsing it and re-serializing it, so we
-need fields to be in the exact same order they were defined.  Also, in
-Git, the order keys appear in commit and tag object seem to matter.
+#+begin_info
+<<identity-rules>> *Object identity rules*
+
+We use an =OrderedDict=, a dictionary where keys are ordered, so
+fields always appear in the same order.  This is crucial, because Git
+has two strong rules about object identity:
+
+ 1. *The same name will always refer to the same object*, we've seen
+    this already, it's guaranteed by the fact that an object's name is
+    a hash of its contents.
+ 2. *The same object will always be referred by the same name*.  This
+    is subtly different: by modifying the /order/ fields appear in a
+    commit, eg by putting the =tree= after the =parent=, we'd create
+    two equivalent, but numerically distinct, commit objects.
+
+This will matter a lot more with trees.
+#+end_info
 
 We're going to need to write similar objects, so let's add a
 =kvlm_serialize()= function to our toolkit.
@@ -3033,6 +3046,7 @@ You should have received a copy of the GNU General Public License
 along with Wyag.  If not, see <http://www.gnu.org/licenses/>.
 
 * Footnotes
+[fn:2] I learned that the hard way.
 
 [fn:1] You may know that [[https://shattered.io/][collisions have been discovered in SHA-1]].
 Git actually doesn't use SHA-1 anymore: it uses a [[https://github.com/git/git/blob/26e47e261e969491ad4e3b6c298450c061749c9e/Documentation/technical/hash-function-transition.txt#L34-L36][hardened variant]]
