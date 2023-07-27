@@ -2993,14 +2993,12 @@ in the index's field.
           sha = object_hash(fd, b"blob", repo)
 
         stat = os.stat(abspath)
-        print(stat)
 
         ctime_s = int(stat.st_ctime)
         ctime_ns = stat.st_ctime_ns % 10**9
         mtime_s = int(stat.st_mtime)
         mtime_ns = stat.st_mtime_ns % 10**9
 
-        print(relpath)
         entry = GitIndexEntry(ctime=(ctime_s, ctime_ns), mtime=(mtime_s, mtime_ns), dev=stat.st_dev, ino=stat.st_ino,
                               mode_type=0b1000, mode_perms=0o644, uid=stat.st_uid, gid=stat.st_gid,
                               fsize=stat.st_size, sha=sha, flag_assume_valid=False,
