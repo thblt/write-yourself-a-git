@@ -742,9 +742,10 @@ Objects can be of multiple types, but they all share the same
 storage/retrieval mechanism and the same general header format.
 Before we dive into the details of various types of objects, we need
 to abstract over these common features.  The easiest way is to create
-a generic =GitObject= with two unimplemented methods: =serialize()= and
-=deserialize()=.  Later, we'll subclass this generic class, actually
-implementing these functions for each object format.
+a generic =GitObject= with two unimplemented methods: =serialize()=
+and =deserialize()=, and a default =init()= Later, we'll subclass this
+generic class, actually implementing these functions for each object
+format.
 
 #+BEGIN_SRC python :tangle libwyag.py
 class GitObject (object):
@@ -752,6 +753,8 @@ class GitObject (object):
     def __init__(self, data=None):
         if data != None:
             self.deserialize(data)
+        else:
+            self.init()
 
     def serialize(self, repo):
         """This function MUST be implemented by subclasses.
@@ -762,6 +765,9 @@ whatever it takes to convert it into a meaningful representation.  What exactly 
 
     def deserialize(self, data):
         raise Exception("Unimplemented!")
+
+    def init(self):
+        pass
 #+END_SRC
 
 ** Reading objects
@@ -1176,6 +1182,9 @@ Now we have the parser, we can create the =GitCommit= class:
 
       def serialize(self):
           return kvlm_serialize(self.kvlm)
+
+      def init(self):
+          self.kvlm = dict()
 #+END_SRC
 
 ** The log command
@@ -1437,6 +1446,9 @@ And now we just have to combine all that into a class:
 
       def serialize(self):
           return tree_serialize(self)
+
+      def init(self):
+          self.items = list()
 #+END_SRC
 
 ** Showing trees: ls-tree
