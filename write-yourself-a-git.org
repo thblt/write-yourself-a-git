@@ -216,13 +216,13 @@ You're done!
 #+END_SRC
 
    #+BEGIN_SRC python :tangle libwyag.py :exports none :noweb yes
-#<<file_header>>
+# <<file_header>>
 
    #+END_SRC
 
    #+BEGIN_SRC python :tangle wyag :exports none :noweb yes
 
-#<<file_header>>
+# <<file_header>>
    #+END_SRC
 
 Now for the library.  it must be called =libwyag.py=, and be in the same
