@@ -58,9 +58,10 @@ article top to bottom and write the code (or just [[./wyag.zip][download it]] as
 --- but you should write the code yourself, really), you'll end up
 with a program, called =wyag=, that will implement all the fundamental
 features of git: =init=, =add=, =rm=, =status=, =commit=, =log=... in
-a way that is perfectly compatible with =git= itself.  The last commit
-of this article was actually created with =wyag=, not =git=.  And all
-that in exactly call_slocs() lines of very simple Python code.
+a way that is perfectly compatible with =git= itself --- compatible
+enough that the commit finally adding the section on commits was
+[[https://github.com/thblt/write-yourself-a-git/commit/ed26daffb400b2be5f30e044c3237d220226d867][created by wyag itself, not git]].  And all that in exactly call_slocs()
+lines of very simple Python code.
 
 But isn't Git too complex for that?  That Git is complex is, in my
 opinion, a misconception.  Git is a large program, with a lot of
