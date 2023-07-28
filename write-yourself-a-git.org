@@ -482,18 +482,18 @@ def repo_dir(repo, *path, mkdir=False):
         return None
 #+END_SRC
 
-To *create* a new repository, we start with a directory (which we create
-if doesn't already exist, or check for emptiness otherwise) and create
-the following paths:
+To *create* a new repository, we start with a directory (which we
+create if doesn't already exist) and create the *git directory* inside
+(which must not exist already, or be empty).  That directory is called
+=.git= (the leading period makes it "hidden" on Unix systems), and contains:
 
- - =.git= is the git directory itself, which contains:
-   - =.git/objects/= : the object store, which we'll introduce [[#objects][in the next section]].
-   - =.git/refs/= the reference store, which we'll discuss [[#cmd-show-ref][a bit later]].
-     It contains two subdirectories, =heads= and =tags=.
-   - =.git/HEAD=, a reference to the current HEAD (more on that later!)
-   - =.git/config=, the repository's configuration file.
-   - =.git/description=, holds a free-form description of this
-     repository's contents, for humans, and is rarely used.
+ - =.git/objects/= : the object store, which we'll introduce [[#objects][in the next section]].
+ - =.git/refs/= the reference store, which we'll discuss [[#cmd-show-ref][a bit later]].
+   It contains two subdirectories, =heads= and =tags=.
+ - =.git/HEAD=, a reference to the current HEAD (more on that later!)
+ - =.git/config=, the repository's configuration file.
+ - =.git/description=, holds a free-form description of this
+   repository's contents, for humans, and is rarely used.
 
 #+BEGIN_SRC python :tangle libwyag.py
   def repo_create(path):
