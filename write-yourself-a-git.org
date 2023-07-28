@@ -362,7 +362,7 @@ executing the actual command.
           case "show-ref"     : cmd_show_ref(args)
           case "status"       : cmd_status(args)
           case "tag"          : cmd_tag(args)
-          case _              : print("Bad command")
+          case _              : print("Bad command.")
 #+END_SRC
 
 * Creating repositories: init
@@ -384,7 +384,7 @@ We'll obviously need some abstraction for a repository: almost every
 time we run a git command, we're trying to do something to a
 repository, to create it, read from it or modify it.
 
-A repository, in git, is made of two things: a "work tree", where the
+A git repository is made of two things: a "work tree", where the
 files meant to be in version control live, and a "git directory",
 where Git stores its own data.  In most cases, the worktree is a
 regular directory and the git directory is a child directory of the
@@ -395,7 +395,7 @@ won't need them: we'll stick the basic approach of =worktree/.git=.  Our
 repository object will then just hold two paths: the worktree and the
 gitdir.
 
-To create a new =Repository= object, we only need  to make a few checks:
+To create a new =Repository= object, we only need to make a few checks:
 
  - We must verify that the directory exists, and contains a
    subdirectory called =.git=.
