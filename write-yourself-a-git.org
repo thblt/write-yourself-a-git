@@ -451,42 +451,53 @@ def repo_path(repo, *path):
     return os.path.join(repo.gitdir, *path)
 #+END_SRC
 
+(A note on Python syntax: the star on the =*path= makes the function
+variadic, so it can be called with multiple path components as
+separate arguments.  For example, ~repo_path(repo, "objects", "df",
+"4ec9fc2ad990cb9da906a95a6eda6627d7b7b0")~ is a valid call.  The
+function receives =path= as a list)
+
 The two next functions, =repo_file()= and =repo_dir()=, return and
 optionally create a path to a file or a directory, respectively.  The
 difference between them is that the file version only creates
 directories up to the last component.
 
 #+BEGIN_SRC python :tangle libwyag.py
-def repo_file(repo, *path, mkdir=False):
-    """Same as repo_path, but create dirname(*path) if absent.  For
-example, repo_file(r, \"refs\", \"remotes\", \"origin\", \"HEAD\") will create
-.git/refs/remotes/origin."""
+  def repo_file(repo, *path, mkdir=False):
+      """Same as repo_path, but create dirname(*path) if absent.  For
+  example, repo_file(r, \"refs\", \"remotes\", \"origin\", \"HEAD\") will create
+  .git/refs/remotes/origin."""
 
-    if repo_dir(repo, *path[:-1], mkdir=mkdir):
-        return repo_path(repo, *path)
+      if repo_dir(repo, *path[:-1], mkdir=mkdir):
+          return repo_path(repo, *path)
 
-def repo_dir(repo, *path, mkdir=False):
-    """Same as repo_path, but mkdir *path if absent if mkdir."""
+  def repo_dir(repo, *path, mkdir=False):
+      """Same as repo_path, but mkdir *path if absent if mkdir."""
 
-    path = repo_path(repo, *path)
+      path = repo_path(repo, *path)
 
-    if os.path.exists(path):
-        if (os.path.isdir(path)):
-            return path
-        else:
-            raise Exception("Not a directory %s" % path)
+      if os.path.exists(path):
+          if (os.path.isdir(path)):
+              return path
+          else:
+              raise Exception("Not a directory %s" % path)
 
-    if mkdir:
-        os.makedirs(path)
-        return path
-    else:
-        return None
+      if mkdir:
+          os.makedirs(path)
+          return path
+      else:
+          return None
 #+END_SRC
+
+(Second and last note on syntax: because =*args= makes the functions
+variadic, the =mkdir= argument must be passed explicitly by name.  For
+example, ~repo_file(repo, "objects", mkdir=True)~.)
 
 To *create* a new repository, we start with a directory (which we
 create if doesn't already exist) and create the *git directory* inside
 (which must not exist already, or be empty).  That directory is called
 =.git= (the leading period makes it "hidden" on Unix systems), and contains:
+>>>>>>> 8117490 (Explain Python variadic function syntax)
 
  - =.git/objects/= : the object store, which we'll introduce [[#objects][in the next section]].
  - =.git/refs/= the reference store, which we'll discuss [[#cmd-show-ref][a bit later]].
