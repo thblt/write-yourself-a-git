@@ -3233,15 +3233,15 @@ And we can now delete files with =wyag rm=.
 Adding is just a bit more complex than removing, but nothing we don't
 already know.  Staging a file to a three-steps operation:
 
- 1. We remove the existing entry, if any, without removing the file
-    itself (this is why the rm function we just wrote has those
-    optional arguments).
- 2. Hash the file into a glob object.
- 3. Create its entry.
- 4. And of course, write the modified index back.
+ 1. We begin by removing the existing index entry, if there's one,
+    without removing the file itself (this is why the =rm= function we
+    just wrote has those optional arguments).
+ 2. We then hash the file into a glob object,
+ 3. create its entry,
+ 4. And of course, finally write the modified index back.
 
 First, the interface.  Nothing surprising, =wyag add PATH ...= where
-PATH is one or more file(s) to stage.
+PATH is one or more file(s) to stage.  The bridge is as boring as can be.
 
 #+BEGIN_SRC python :tangle libwyag.py
   argsp = argsubparsers.add_parser("add", help = "Add files contents to the index.")
@@ -3252,9 +3252,10 @@ PATH is one or more file(s) to stage.
     add(repo, args.path)
 #+END_src
 
-The main difference with rm is that =add= needs to create an index
-entry.  This isn't hard: we just stat() the file and copy the metadata
-in the index's field.
+The main difference with =rm= is that =add= needs to create an index
+entry.  This isn't hard: we just =stat()= the file and copy the
+metadata in the index's field (=stat()= returns those metadata the
+index stores: creation/modification time, and so on)
 
 #+BEGIN_SRC python :tangle libwyag.py
   def add(repo, paths, delete=True, skip_missing=False):
@@ -3279,7 +3280,7 @@ in the index's field.
       #
       # @FIXME, though: we could just
       # move the index through commands instead of reading and writing
-      # it again.
+      # it over again.
       index = index_read(repo)
 
       for (abspath, relpath) in clean_paths:
@@ -3308,10 +3309,8 @@ in the index's field.
 :CUSTOM_ID: cmd-commit
 :END:
 
-To commit a set of changes, we need to turn the current index into a
-tree object, generate and store the corresponding commit object, and
-update the HEAD branch to the new commit (remember: a branch is just a
-ref to a commit).
+Now that we have modified the index, so actually /staged changes/, we
+only need to turn those changes into a commit.  That's what =commit= does.
 
 #+begin_src python :tangle libwyag.py
   argsp = argsubparsers.add_parser("commit", help="Record changes to the repository.")
@@ -3321,6 +3320,11 @@ ref to a commit).
                      dest="message",
                      help="Message to associate with this commit.")
 #+end_src
+
+To do so, we first need to convert the index into a tree object,
+generate and store the corresponding commit object, and update the
+HEAD branch to the new commit (remember: a branch is just a ref to a
+commit).
 
 Before we get to the interesting details, we will need to read git's
 config to get the name of the user, which we'll use as the author and
@@ -3353,11 +3357,13 @@ And just a simple function to grab, and format, the user identity:
 Now for the interesting part.  We first need to build a tree from the
 index.  This isn't hard, but notice that while the index is flat (it
 stores full paths for the whole worktree), a tree is a recursive
-structure.  What we do is
+structure: it lists files, or other trees.  To "unflatten" the index
+into a tree, we're going to:
 
- 1. Build a dictionary of directories.  Keys are full paths from
-    worktree root (like =src/=), values are list of =GitIndexEntry=
-    --- files in the directory.
+ 1. Build a dictionary (hashmap) of directories.  Keys are full paths
+    from worktree root (like =assets/sprites/monsters/=), values are
+    list of =GitIndexEntry= --- files in the directory.  At this point, our
+    dictionary only contains /files/: directories are only its keys.
  2. Traverse this list, going bottom-up, that is, from the deepest
     directories up to root (depth doesn't really matter: we just want
     to see each directory /before/ its parent.  To do that, we just
@@ -3375,10 +3381,100 @@ structure.  What we do is
     =yellow.png=, create a tree, store the tree, add the tree's SHA-1
     under the name =keys= under =assets/sprites/=, and so on.
 
-Remember tree are recursive?  So the last tree we'll build, which is
-necessarily the one for root (since its length is 0), ultimately
-refers to all others, so it's the only one we need.  We simply return
-its SHA, and we're done.
+And since trees are recursive?  So the last tree we'll build, which is
+necessarily the one for root (since its key's length is 0), will
+ultimately refer to all others, and thus will be only one we'll need.
+We'll simply return its SHA-1, and be done.
+
+Since this may seem a bit complex, let's work this example in full
+details --- feel free to skip.  At the beginning, the dictionary we
+built from the index looks like this:
+
+#+begin_example
+  contents["assets/sprites/monsters"] =
+    [ cacodemon.png : GitIndexEntry
+    , imp.png : GitIndexEntry
+    , baron-of-hell.png : GitIndexEntry ]
+  contents["assets/sprites/keys"] =
+    [ red.png : GitIndexEntry
+    , blue.png : GitIndexEntry
+    , yellow.png : GitIndexEntry ]
+  contents["assets/sprites/"] =
+    [ hero.png : GitIndexEntry ]
+  contents["assets/"] = [] # No files in here
+  contents[""] = # Root!
+    [ README: GitIndexEntry ]
+#+end_example
+
+We iterate over it, by order of descending key length.  The first key
+we meet is the longest, so =assets/sprites/monsters=.  We build a new
+tree object from its contents, which associates the three file names
+(=cacodemon.png=, =imp.png=, =baron-of-hell.png=) with their
+corresponding blobs (A tree leaf stores /less/ data than the index ---
+just path, mode and blob.  So converting entries that way is easy)
+
+Notice we don't need to concern ourselves with storing the *contents*
+of those files: =wyag add= did create the corresponding blobs as
+needed.  We need to store the /trees/ we create to the object store,
+but we can assume the blobs are there already.
+
+Let's say that our new tree hashes, made from the index entries that
+lived directly in =assets/sprites/monsters=, hashes down to
+=426f894781bc3c38f1d26f8fd2c7f38ab8d21763=.  We *modify our
+dictionary* to add that new tree object to the directory's parent,
+like this, so what remains to traverse now looks like this:
+
+#+begin_example
+  contents["assets/sprites/keys"] = # <- unmodified.
+    [ red.png : GitIndexEntry
+    , blue.png : GitIndexEntry
+    , yellow.png : GitIndexEntry ]
+  contents["assets/sprites/"] =
+    [ hero.png : GitIndexEntry
+    , monsters : Tree 426f894781bc3c38f1d26f8fd2c7f38ab8d21763 ] <- look here
+  contents["assets/"] = [] # empty
+  contents[""] = # Root!
+    [ README: GitIndexEntry ]
+#+end_example
+
+We do the same for the next longest key, =assets/sprites/keys=,
+producing a tree of hash =b42788e087b1e94a0e69dcb7a4a243eaab802bb2=,
+so:
+
+#+begin_example
+  contents["assets/sprites/"] =
+    [ hero.png : GitIndexEntry
+    ,  monsters : Tree 426f894781bc3c38f1d26f8fd2c7f38ab8d21763
+    , keys : Tree b42788e087b1e94a0e69dcb7a4a243eaab802bb2 ]
+  contents["assets/"] = [] # empty
+  contents[""] = # Root!
+    [ README: GitIndexEntry ]
+#+end_example
+
+We then generate tree =6364113557ed681d775ccbd3c90895ed276956a2= from
+assets/sprites, which now contains our two trees and =hero.png=.
+
+#+begin_example
+  contents["assets/"] = [
+    sprites: Tree 6364113557ed681d775ccbd3c90895ed276956a2 ]
+  contents[""] = # Root!
+    [ README: GitIndexEntry ]
+#+end_example
+
+Assets in turn becomes tree =4d35513cb6d2a816bc00505be926624440ebbddd=, so:
+
+#+begin_example
+  contents[""] = # Root!
+    [ README: GitIndexEntry,
+      assets: 4d35513cb6d2a816bc00505be926624440ebbddd]
+#+end_example
+
+We make a tree from that last key (with the =README= blob and the
+=assets= subtree), it hashes to
+=9352e52ff58fa9bf5a750f090af64c09fa6a3d93=.  That's our return value:
+the tree whose contents are the same as the index's.
+
+Here's the actual function:
 
 #+begin_src python :tangle libwyag.py
   def tree_from_index(repo, index):
@@ -3403,33 +3499,41 @@ its SHA, and we're done.
           contents[dirname].append(entry)
 
       # Get keys (= directories) and sort them by length, descending.
-      # easiest way to traverse the list of paths bottom-up.  This means
-      # that we'll always encounter a given path before its parent,
-      # which is all we need.
+      # This means that we'll always encounter a given path before its
+      # parent, which is all we need, since for each directory D we'll
+      # need to modify its parent P to add D's tree.
       sorted_paths = sorted(contents.keys(), key=len, reverse=True)
+
+      # This variable will store the current tree's SHA-1.  After we're
+      # done iterating over our dict, it will contain the hash for the
+      # root tree.
       sha = None
 
-      # We create, and write, trees
+      # We ge through the sorted list of paths (dict keys)
       for path in sorted_paths:
+          # Prepare a new, empty tree object
           tree = GitTree()
 
+          # Add each entry to our new tree, in turn
           for entry in contents[path]:
               # An entry can be a normal GitIndexEntry read from the
               # index, or a tree we've created.
-              if isinstance(entry, GitIndexEntry): # Regular entry
+              if isinstance(entry, GitIndexEntry): # Regular entry (a file)
+
                   # We transcode the mode: the entry stores it as integers,
                   # we need an octal ASCII representation for the tree.
                   leaf_mode = "{:02o}{:04o}".format(entry.mode_type, entry.mode_perms).encode("ascii")
                   leaf = GitTreeLeaf(mode = leaf_mode, path=os.path.basename(entry.name), sha=entry.sha)
-              else: # Tree.  It comes as a pair: (basename, SHA)
+              else: # Tree.  We've stored it as a pair: (basename, SHA)
                   leaf = GitTreeLeaf(mode = b"040000", path=entry[0], sha=entry[1])
 
               tree.items.append(leaf)
 
-          # Write the new tree object.
+          # Write the new tree object to the store.
           sha = object_write(tree, repo)
 
-          # Add the new tree to its parent, as a pair (basename, SHA)
+          # Add the new tree hash to the current dictionary's parent, as
+          # a pair (basename, SHA)
           parent = os.path.dirname(path)
           base = os.path.basename(path) # The name without the path, eg main.go for src/main.go
           contents[parent].append((base, sha))
@@ -3437,17 +3541,21 @@ its SHA, and we're done.
       return sha
 #+end_src
 
-This was the hard part.  It's a bit of a recursion dance, so I hope
-it's still clean enough.  From this, creating the commit object and
-updating HEAD will be way easier.
+This was the hard part; I hope it's clear enough.  From this, creating
+the commit object and updating HEAD will be way easier.  Just remember
+that what this function /does/ is built and store as many tree objects
+as needed to represent the index, and return the root tree's SHA-1.
 
-The function to create a commit object is simple enough, it just takes a few more arguments than usual.
+The function to create a commit object is simple enough, it just takes
+some arguments: the hash of the tree, the hash of the parent commit,
+the author's identity (a string), the timestamp and timezone delta,
+and the message:
 
 # @TODO Explain them!
 
 #+begin_src python :tangle libwyag.py
     def commit_create(repo, tree, parent, author, timestamp, tz, message):
-        commit = GitCommit()
+        commit = GitCommit() # Create the new commit object.
         commit.kvlm[b"tree"] = tree.encode("ascii")
         if parent:
             commit.kvlm[b"parent"] = parent.encode("ascii")
@@ -3461,8 +3569,8 @@ The function to create a commit object is simple enough, it just takes a few mor
         return object_write(commit, repo)
 #+end_src
 
-All what remains to do is the actual =cmd_commit=, the bridge function
-to the =wyag commit= command:
+All what remains to write is =cmd_commit=, the bridge function to the
+=wyag commit= command:
 
 #+begin_src python :tangle libwyag.py
   def cmd_commit(args):
@@ -3480,7 +3588,7 @@ to the =wyag commit= command:
                              "+0200", # @FIXME
                              args.message)
 
-      # Update HEAD
+      # Update HEAD so our commit is now the tip of the active branch.
       active_branch = branch_get_active(repo)
       if active_branch: # If we're on a branch, we update refs/heads/BRANCH
           with open(repo_file(repo, os.path.join("refs/heads", active_branch)), "w") as fd:
@@ -3489,6 +3597,8 @@ to the =wyag commit= command:
           with open(repo_file(repo, "HEAD"), "w") as fd:
               fd.write("\n")
 #+end_src
+
+And we're done!
 
 * Final words
 
