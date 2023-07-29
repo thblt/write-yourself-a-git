@@ -371,7 +371,6 @@ actual command.
 :CUSTOM_ID: init
 :END:
 
-
 Obviously, the first Git command in chronological /and/ logical order is
 =git init=, so we'll begin by creating =wyag init=.  To achieve this,
 we're going to first need some very basic repository abstraction.
