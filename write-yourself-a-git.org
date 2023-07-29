@@ -3602,6 +3602,24 @@ And we're done!
 
 * Final words
 
+** Conclusion, and beyond commit :noexport:
+
+With that final command, =wyag= is done.  I hope you've enjoyed that
+little journey into the internals of git core.  Obviously, we're still
+very far from what the real git can do, but the goal was to expose the
+model, and this is done.
+
+One of the most fundamental design choices of git, which you've
+probably noticed, is that it only stores full states of the
+repository.  We like to think of commits as /transformations/ of
+source code, and it makes sense to us because in a way that's what
+they /are/, but to git itself each commit is like a zip of a
+directory, as disconnected to the previous as it is to the “next”.
+Git neither knows nor cares about deltas and patches, and even file
+renames indications are just a trick. (To be perfectly honest: it
+actually /knows/ about deltas, but as a storage optimization method,
+in packfiles --- which are optional).
+
 ** Comments, feedback and issues
 :PROPERTIES:
 :CUSTOM_ID: feedback
