@@ -334,12 +334,13 @@ call =git COMMAND=.
 #+END_SRC
 
 The ~dest="command"~ argument states that the name of the chosen
-subparser will be returned as a string in a field called =command=.  So
-we just need to read this string and call the correct function
-accordingly.  By convention, I'll prefix these functions by =cmd_=.
-=cmd_*= functions take the parsed arguments as their unique parameter,
-and are responsible for processing and validating them before
-executing the actual command.
+subparser will be returned as a string in a field called =command=.
+So we just need to read this string and call the correct function
+accordingly.  By convention, I'll call these functions "bridges
+functions" and prefix their names by =cmd_=.  Bridge functions
+take the parsed arguments as their unique parameter, and are
+responsible for processing and validating them before executing the
+actual command.
 
 #+BEGIN_SRC python :tangle libwyag.py
   def main(argv=sys.argv[1:]):
