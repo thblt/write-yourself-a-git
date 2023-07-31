@@ -3602,12 +3602,17 @@ And we're done!
 
 * Final words
 
-** Conclusion, and beyond commit :noexport:
+** Conclusion: beyond commit
+:PROPERTIES:
+:CUSTOM_ID: beyond
+:END:
 
 With that final command, =wyag= is done.  I hope you've enjoyed that
 little journey into the internals of git core.  Obviously, we're still
 very far from what the real git can do, but the goal was to expose the
 model, and this is done.
+
+# @TODO Networking?
 
 One of the most fundamental design choices of git, which you've
 probably noticed, is that it only stores full states of the
@@ -3620,6 +3625,125 @@ renames indications are just a trick. (To be perfectly honest: it
 actually /knows/ about deltas, but as a storage optimization method,
 in packfiles --- which are optional).
 
+There's something that feels incomplete, though, about a /versioning/
+system that doesn't know that a /version/ is usually a transformation
+of a previous version.  And (brace yourself for a cheap plot twist)
+git, /actually/, /somehow knows/ about deltas, patches and
+transformations --- but all this is kept outside the core.
+
+It obviously knows how to show the difference between two trees (=git
+diff=), but that's nothing impressive --- you can do this without it,
+by using your favorite diff tool, like the command line =diff= or the
+graphical tools [[https://wiki.gnome.org/Apps/Meld][Meld]] (on Linux and Mac) and [[https://winmerge.org/?lang=en][WinMerge]].
+
+But the great feature isn't =diff=, it's =merge=.  Git is
+decentralized by design, so every developer can have their own
+complete clone of the "original" repository (this may seem obvious
+now, but both CVS and [[https://subversion.apache.org/][Subversion]] had a centralized design that relied
+on a clear distinction between the original repository and "working
+copies" held by devs).  Git was written to develop the Linux kernel,
+so the general idea was that people or groups of people could checkout
+a copy of the kernel, start making their changes, and submit them
+later to the maintainer as a set of changes.  But since Linux is
+a large project, by the time their feature is finished, files it
+touched may very well have been modified somewhere else.
+
+To do so, git does what's called a *"three-way merge"*.  Say you
+checked out the =main= branch at some point to add support for nyan
+cat keyboards (whatever that means), and you want you changes to make
+it back to =main=.  But, of course, other changes were made to main in
+the meantime, so you can't just submit a patch.  What we want is to
+create a commit that integrates /your/ changes with /all other
+changes/ that happened to =main=.  The general idea of a three way
+merge is to take a common ancestor and two modified versions (hence
+three-way) and try to produce a new version that incorporates both set
+of differences.  Imagine this log:
+
+#+begin_example
+ · 2b33ee Prevent segfault in kvm_init()
+ | \
+ |  | 01bacf Recognize nyan cat keyboards
+ | ff9c83 Restore segfault in kvm_init()
+ |  | df03bc Add nyan music decoder
+ |  | eecb03 Fix rainbow alignment
+ · ff9c83
+ |  | cc3322 Expose nyan cat support to drvlist
+ | /
+ · ???????????
+#+end_example
+
+We want to merge
+
+Say you have a
+branch =feature/nyan-cat-keyboard= that
+
+The interesting command here is
+the famous, and somehow frightening, =git merge=.
+
+# .......... SNIP ........
+
+Let's write =merge= and =rebase=!  But git /won't/ merge trees, so we
+need an external tool for that.  A few merge utilities come with git,
+but obviously we'll write our own.  though.  We're going to keep it
+*very simple*.  It will work with three directories, one ancestor =A=
+and two variants =V1= and =V2=.  We begin by enumerating all paths to
+/files/ in these three directories, and merge them in a single set of
+relative paths (so if a path is present in all three versions, it
+appears only once).  We traverse this list of paths, in no particular
+order, and try to apply these six rules, in order, until one matches.
+
+ - Identity rule :: If a path exists in all of =A=, =V1= and =V2=, and
+   the files are the same, add it to =O=.  It's the very simple case
+   where no variant modified the file.
+ - Deletion rule :: If a file name exists in both =A= and *only* of
+   =V1= and =V2=, with identical contents, but doesn't exist in the
+   other variant, treat it as deleted and *don't* include it in =O=.
+ - Creation rule :: If a file name doesn't exist in O, but exists in
+   at *least one* variant, and is identical in both variants if it
+   exists in both, add it to O.
+ - Unilateral modification rule :: if a file /name/ exists in all
+   three versions, but is different from O in exactly one variant,
+   include the modified version in O.
+ - File merge rule :: if a file /name/ exists in all three versions,
+   but is different in all versions, apply the file merge algorithm to
+   it and include the result in O.
+ - Base case (conflict) :: if none of those rule matches, there's a
+   conflict we can't solve, and we bail out.  A conflict may happen if V1
+   deleted a file that V2 modified, or if V1 and V2 both created
+   different files under the same path.
+
+Let's write this:
+
+#+begin_src python :tangle wyag-merge.py
+
+
+
+#+end_src
+
+#+begin_example
+  /tmp/wyag-merge/A/LICENSE
+  /tmp/wyag-merge/A/app/Main.hs
+  /tmp/wyag-merge/A/project.cabal
+  /tmp/wyag-merge/V1/LICENSE
+  /tmp/wyag-merge/V1/app/Lib.hs
+  /tmp/wyag-merge/V1/app/Main.hs
+  /tmp/wyag-merge/V1/project.cabal
+  /tmp/wyag-merge/V2/LICENSE
+  /tmp/wyag-merge/V2/README
+  /tmp/wyag-merge/V2/app/Main.hs
+  /tmp/wyag-merge/V2/project.cabal
+#+end_example
+
+We only concern ourselves with relative paths, so the list will
+look like this:
+
+#+begin_example
+  LICENSE
+  README
+  app/Lib.hs
+  app/Main.hs
+  project.cabal
+#+end_example
 ** Comments, feedback and issues
 :PROPERTIES:
 :CUSTOM_ID: feedback
