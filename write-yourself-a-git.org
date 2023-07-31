@@ -488,9 +488,9 @@ directories up to the last component.
           return None
 #+END_SRC
 
-(Second and last note on syntax: because =*args= makes the functions
-variadic, the =mkdir= argument must be passed explicitly by name.  For
-example, ~repo_file(repo, "objects", mkdir=True)~.)
+(Second and last note on syntax: because the star in =*path= makes the
+functions variadic, the =mkdir= argument must be passed explicitly by
+name.  For example, ~repo_file(repo, "objects", mkdir=True)~.)
 
 To *create* a new repository, we start with a directory (which we
 create if doesn't already exist) and create the *git directory* inside
