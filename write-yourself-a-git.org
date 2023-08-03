@@ -2181,7 +2181,7 @@ $ wyag cat-file tree master # A branch, as a tree (another "follow")
 Let's implement =wyag rev-parse=.  The =git rev-parse= commands does a
 lot, but one of its use cases, the one we're going to clone, is
 solving references.  For the purpose of further testing the "follow"
-feature of =object_find=, we'll add an optional =wyag-type= arguments
+feature of =object_find=, we'll add an optional =wyag-type= argument
 to its interface.
 
 #+BEGIN_SRC python :tangle libwyag.py
