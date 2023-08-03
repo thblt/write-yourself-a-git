@@ -32,9 +32,7 @@
 :END:
 
 #+begin_note
-  (July 2023) This should be reasonably close to a final version of
-  the article.  I've had to make some breaking changes to the code, I
-  hope it doesn't break anything! --- Thibault
+  (August 2023) Wyag is now complete!
 #+end_note
 
 This article is an attempt at explaining the [[https://git-scm.com/][Git version control
