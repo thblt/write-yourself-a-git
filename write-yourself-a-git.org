@@ -3559,19 +3559,25 @@ and the message:
 # @TODO Explain them!
 
 #+begin_src python :tangle libwyag.py
-    def commit_create(repo, tree, parent, author, timestamp, tz, message):
-        commit = GitCommit() # Create the new commit object.
-        commit.kvlm[b"tree"] = tree.encode("ascii")
-        if parent:
-            commit.kvlm[b"parent"] = parent.encode("ascii")
+  def commit_create(repo, tree, parent, author, timestamp, message):
+      commit = GitCommit() # Create the new commit object.
+      commit.kvlm[b"tree"] = tree.encode("ascii")
+      if parent:
+          commit.kvlm[b"parent"] = parent.encode("ascii")
 
-        author = author + timestamp.strftime(" %s ") + tz
+      # Format timezone
+      offset = int(timestamp.astimezone().utcoffset().total_seconds())
+      hours = offset // 3600
+      minutes = (offset % 3600) // 60
+      tz = "{}{:02}{:02}".format("+" if offset > 0 else "-", hours, minutes)
 
-        commit.kvlm[b"author"] = author.encode("utf8")
-        commit.kvlm[b"committer"] = author.encode("utf8")
-        commit.kvlm[None] = message.encode("utf8")
+      author = author + timestamp.strftime(" %s ") + tz
 
-        return object_write(commit, repo)
+      commit.kvlm[b"author"] = author.encode("utf8")
+      commit.kvlm[b"committer"] = author.encode("utf8")
+      commit.kvlm[None] = message.encode("utf8")
+
+      return object_write(commit, repo)
 #+end_src
 
 All what remains to write is =cmd_commit=, the bridge function to the
@@ -3590,7 +3596,6 @@ All what remains to write is =cmd_commit=, the bridge function to the
                              object_find(repo, "HEAD"),
                              gitconfig_user_get(gitconfig_read()),
                              datetime.now(),
-                             "+0200", # @FIXME
                              args.message)
 
       # Update HEAD so our commit is now the tip of the active branch.
