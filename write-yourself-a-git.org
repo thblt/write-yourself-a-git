@@ -1198,25 +1198,30 @@ I use KVLM to mean "Key-Value List with Message".
        return kvlm_parse(raw, start=end+1, dct=dct)
 #+END_SRC
 
-#+begin_info
+#+begin_note
 <<identity-rules>> *Object identity rules*
 
-We use an =OrderedDict=, a dictionary (hashmap) where keys are
-ordered, so fields always appear in the same order.  This is crucial,
-because Git has two strong rules about object identity:
+We use an =OrderedDict= (a dictionary/hashmap where keys are ordered)
+so fields always appear in the same order.  This matters, because Git
+has *two strong rules about object identity*:
 
- 1. *The same name will always refer to the same object*, we've seen
-    this already, it's guaranteed by the fact that an object's name is
-    a hash of its contents.
- 2. *The same object will always be referred by the same name*.  This
-    is subtly different: by modifying the /order/ fields appear in a
-    given commit, eg by putting the =tree= after the =parent=, we'd
-    modify the SHA-1 hash of the commit, and we'd create two
-    equivalent, but numerically distinct, commit objects.
+ 1. The first rule is that *the same name will always refer to the
+    same object*.  We've seen this one already, it's just a
+    consequence of the fact that an object's name is a hash of its
+    contents.
+ 2. The second rule is subtly different: *the same object will always
+    be referred by the same name*.  This means that there shouldn't be
+    two equivalent objects under different names.  This is why fields
+    order matter: by modifying the /order/ fields appear in a given
+    commit, eg by putting the =tree= after the =parent=, we'd modify
+    the SHA-1 hash of the commit, and we'd create two equivalent, but
+    numerically distinct, commit objects.
 
-These rules must hold, or git may behave strangely, especially with
-tree objects.
-#+end_info
+For example, when comparing trees, git will assume that two trees with
+different names /are/ different --- this is why we'll have to make
+sure elements of the tree objects are properly sorted, so we don't
+produce distinct but equivalent trees.
+#+end_note
 
 We're also going to need to write similar objects, so let's add a
 =kvlm_serialize()= function to our toolkit.  This is very simple: we
