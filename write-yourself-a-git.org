@@ -158,8 +158,7 @@ some basic Git (obviously), some basic Python, some basic shell.
 :CUSTOM_ID: getting-started
 :END:
 
-You're going to need Python 3 (I used 3.6.5: if you encounter issues
-try using at least this version.  Python 2 won't work at all) and your
+You're going to need Python 3.10 or higher, along with your
 favorite text editor.  We won't need third party packages or
 virtualenvs, or anything besides a regular Python interpreter:
 everything we need is in Python's standard library.
@@ -855,23 +854,6 @@ object's format.
           return c(raw[y+1:])
 #+END_SRC
 
-<<placeholder-object_find>> This function calls an =object_find=
-function we haven't introduced yet.  For now, it's just going to
-return one of its arguments unmodified, like this:
-
-#+BEGIN_SRC python
-def object_find(repo, name, fmt=None, follow=True):
-    return name
-#+END_SRC
-
-The reason for this strange small function is that Git has a /lot/ of
-ways to refer to objects: full hash, short hash, tags...
-=object_find()= will be our name resolution function.  We'll only
-implement it [[#object_find][later]], so this is just a temporary placeholder (so our
-code can run already, without the real version).  This means that
-until we implement the real thing, the only way we can refer to an
-object will be by its full hash.
-
 ** Writing objects
 :PROPERTIES:
 :object_write:
@@ -962,8 +944,7 @@ The subparser is very simple:
                      help="The object to display")
 #+END_SRC
 
-And the functions themselves shouldn't need any explanation, they just
-call into already written logic:
+And we can implement the functions, which just call into other logic:
 
 #+BEGIN_SRC python :tangle libwyag.py
   def cmd_cat_file(args):
@@ -974,6 +955,23 @@ call into already written logic:
       obj = object_read(repo, object_find(repo, obj, fmt=fmt))
       sys.stdout.buffer.write(obj.serialize())
 #+END_SRC
+
+<<placeholder-object_find>> This function calls an =object_find=
+function we haven't introduced yet.  For now, it's just going to
+return one of its arguments unmodified, like this:
+
+#+BEGIN_SRC python
+def object_find(repo, name, fmt=None, follow=True):
+    return name
+#+END_SRC
+
+The reason for this strange small function is that Git has a /lot/ of
+ways to refer to objects: full hash, short hash, tags...
+=object_find()= will be our name resolution function.  We'll only
+implement it [[#object_find][later]], so this is just a temporary placeholder (so our
+code can run already, without the real version).  This means that
+until we implement the real thing, the only way we can refer to an
+object will be by its full hash.
 
 ** The hash-object command
 :PROPERTIES:
