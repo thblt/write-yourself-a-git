@@ -491,7 +491,6 @@ To *create* a new repository, we start with a directory (which we
 create if doesn't already exist) and create the *git directory* inside
 (which must not exist already, or be empty).  That directory is called
 =.git= (the leading period makes it "hidden" on Unix systems), and contains:
->>>>>>> 8117490 (Explain Python variadic function syntax)
 
  - =.git/objects/= : the object store, which we'll introduce [[#objects][in the next section]].
  - =.git/refs/= the reference store, which we'll discuss [[#cmd-show-ref][a bit later]].
