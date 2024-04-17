@@ -517,7 +517,6 @@ create if doesn't already exist) and create the *git directory* inside
       else:
           os.makedirs(repo.worktree)
 
-      assert repo_dir(repo, "branches", mkdir=True)
       assert repo_dir(repo, "objects", mkdir=True)
       assert repo_dir(repo, "refs", "tags", mkdir=True)
       assert repo_dir(repo, "refs", "heads", mkdir=True)
