@@ -2549,7 +2549,7 @@ so we can display every single bit of info in the index file.
           e.flag_assume_valid))
 #+END_SRC
 
-If you run ls-tree, you'll notice that on a “clean” worktree (an
+If you run ls-files, you'll notice that on a “clean” worktree (an
 unmodified checkout of =HEAD=), it lists all files on =HEAD=.  Again,
 the index is not a /delta/ (a set of differences) from the =HEAD=
 commit, but starts as a copy of it, in a different format.
