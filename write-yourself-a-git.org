@@ -385,10 +385,10 @@ where Git stores its own data.  In most cases, the worktree is a
 regular directory and the git directory is a child directory of the
 worktree, called =.git=.
 
-Git supports /much more/ cases (bare repo, separated gitdir, etc) but we
-won't need them: we'll stick the basic approach of =worktree/.git=.  Our
-repository object will then just hold two paths: the worktree and the
-gitdir.
+Git supports /much more/ cases (bare repo, separated gitdir, etc) but
+we won't need them: we'll stick to the basic approach of
+=worktree/.git=.  Our repository object will then just hold two paths:
+the worktree and the gitdir.
 
 To create a new =Repository= object, we only need to make a few checks:
 
@@ -451,7 +451,7 @@ separate arguments.  For example, ~repo_path(repo, "objects", "df",
 "4ec9fc2ad990cb9da906a95a6eda6627d7b7b0")~ is a valid call.  The
 function receives =path= as a list)
 
-The two next functions, =repo_file()= and =repo_dir()=, return and
+The next two functions, =repo_file()= and =repo_dir()=, return and
 optionally create a path to a file or a directory, respectively.  The
 difference between them is that the file version only creates
 directories up to the last component.
@@ -537,13 +537,14 @@ create if doesn't already exist) and create the *git directory* inside
       return repo
 #+END_SRC
 
-The configuration file is very simple, it's a INI-like file with a
+The configuration file is very simple, it's a [[https://en.wikipedia.org/wiki/INI_file][INI]]-like file with a
 single section (=[core]=) and three fields:
 
  - =repositoryformatversion = 0=: the version of
    the gitdir format.  0 means the initial format, 1 the same with
    extensions.  If > 1, git will panic; wyag will only accept 0.
- - =filemode = false=: disable tracking of file mode (permissions) changes in the work tree.
+ - =filemode = false=: disable tracking of file modes (permissions)
+   changes in the work tree.
  - =bare = false=: indicates that this repository has a worktree.  Git
    supports an optional =worktree= key which indicates the location of
    the worktree, if not =..=; wyag doesn't.
@@ -588,7 +589,7 @@ command, we're only going to need two more things:
 
    In the case of =init=, there's a single, optional,
    positional argument: the path where to init the repo.  It defaults
-   to =.=:
+   to =.=, the current directory:
 
     #+BEGIN_SRC python :tangle libwyag.py
     argsp.add_argument("path",
@@ -614,6 +615,9 @@ able to =wyag init= a git repository anywhere:
 #+begin_example
   $ wyag init test
 #+end_example
+
+(The =wyag= executable won't usually be in your =$PATH=: you'll want to call it by its
+full name, eg =~/projects/wyag/wyag init .=)
 
 ** The repo_find() function
 :PROPERTIES:
@@ -684,9 +688,9 @@ that file's contents, the names of files as stored by Git are
 mathematically derived from their contents.  This has a very important
 implication: if a single byte of, say, a text file, changes, its
 internal name will change, too.  To put it simply: you don't /modify/
-a file, you create a new file in a different location.  Objects are
-just that: *files in the git repository, whose paths are determined by
-their contents*.
+a file in git, you create a new file in a different location.  Objects
+are just that: *files in the git repository, whose paths are
+determined by their contents*.
 
 #+begin_warning
 *Git is not (really) a key-value store*
@@ -694,7 +698,7 @@ their contents*.
 Some documentation, including the excellent [[https://git-scm.com/book/id/v2/Git-Internals-Git-Objects][Pro Git]], call Git a
 "key-value store".  This is not incorrect, but may be misleading.
 Regular filesystems are actually closer to a key-value store than Git
-is.  Because it computes keys from data, Git should rather be called a
+is.  Because it computes keys from data, Git could rather be called a
 /value-value store/.
 #+end_warning
 
@@ -704,32 +708,36 @@ example.  Commit are objects, too, as well as tags.  With a few
 notable exceptions (which we'll see later!), almost everything, in
 Git, is stored as an object.
 
-The path is computed by calculating the [[https://en.wikipedia.org/wiki/SHA-1][SHA-1]] [[https://en.wikipedia.org/wiki/Cryptographic_hash_function][hash]] of its contents.
-More precisely, Git renders the hash as a lowercase hexadecimal
-string, and splits it in two parts: the first two characters, and the
-rest.  It uses the first part as a directory name, the rest as the
-file name (this is because most filesystems hate having too many files
-in a single directory and would slow down to a crawl.  Git's method
-creates 256 possible intermediate directories, hence dividing the
-average number of files per directory by 256)
+The path where git stores a given object is computed by calculating
+the [[https://en.wikipedia.org/wiki/SHA-1][SHA-1]] [[https://en.wikipedia.org/wiki/Cryptographic_hash_function][hash]] of its contents.  More precisely, Git renders the hash
+as a lowercase hexadecimal string, and splits it in two parts: the
+first two characters, and the rest.  It uses the first part as a
+directory name, the rest as the file name (this is because most
+filesystems hate having too many files in a single directory and would
+slow down to a crawl.  Git's method creates 256 possible intermediate
+directories, hence dividing the average number of files per directory
+by 256)
 
 #+BEGIN_note
 *What is a hash function?*
 
-Simply put, a hash function is a kind of unidirectional mathematical
-function: it is easy to compute the hash of a value, but there's no
-way to compute which value produced a hash.  A very simple example of
-a hash function is the classical =len= (or =strlen=) function, that
-returns the length of a string.  It's really easy to compute the
-length of a string, and the length of a given string will never change
-(unless the string itself changes, of course!) but it's impossible to
-retrieve the original string, given only its length.  /Cryptographic/
-hash functions are just a much more complex version of the same, with
-the added property that computing an input meant to produce a given
-hash is hard enough to be practically impossible.  (To produce an
-input =i= with ~strlen(i) == 12~, you just type twelve random
-characters.  With algorithms such as SHA-1. it would take much, much
-longer --- long enough to be practically impossible[fn:1]).
+SHA-1 is what we call a “hash function”. Simply put, a hash function
+is a kind of unidirectional mathematical function: it is easy to
+compute the hash of a value, but there's no way to compute back which
+value produced a hash.
+
+A very simple example of a hash function is the classical =len= (or
+=strlen=) function, which returns the length of a string.  It's really
+easy to compute the length of a string, and the length of a given
+string will never change (unless the string itself changes, of
+course!) but it's impossible to retrieve the original string, given
+only its length.  /Cryptographic/ hash functions are a much more
+complex version of the same, with the added property that computing an
+input meant to produce a given hash is hard enough to be practically
+impossible.  (To produce an input =i= with ~strlen(i) == 12~, you just
+type twelve random characters.  With algorithms such as SHA-1. it
+would take much, much longer --- long enough to be practically
+impossible[fn:1]).
 #+END_note
 
 Before we start implementing the object storage system, we must
@@ -762,7 +770,7 @@ to abstract over these common features.  The easiest way is to create
 a generic =GitObject= with two unimplemented methods: =serialize()=
 and =deserialize()=, and a default =init()= to create a new, empty
 object if needed (sorry pythonistas, this isn't very nice design but
-it's probably easier to read than superconstructors).  Our __init__
+it's probably easier to read than superconstructors).  Our =__init__=
 either loads the object from the provided data, or calls the
 subclass-provided =init()= to create a new, empty object.
 
@@ -797,11 +805,11 @@ whatever it takes to convert it into a meaningful representation.  What exactly 
 :CUSTOM_ID: object_read
 :END:
 
-To read an object, we need to know its hash.  We then compute its path
-from this hash (with the formula explained above: first two
-characters, then a directory delimiter =/=, then the remaining part) and
-look it up inside of the "objects" directory in the gitdir.  That is,
-the path to =e673d1b7eaa0aa01b5bc2442d570a765bdaae751= is
+To read an object, we need to know its SHA-1 hash.  We then compute
+its path from this hash (with the formula explained above: first two
+characters, then a directory delimiter =/=, then the remaining part)
+and look it up inside of the "objects" directory in the gitdir.  That
+is, the path to =e673d1b7eaa0aa01b5bc2442d570a765bdaae751= is
 =.git/objects/e6/73d1b7eaa0aa01b5bc2442d570a765bdaae751=.
 
 We then read that file as a binary file, and decompress it using
@@ -858,8 +866,9 @@ object's format.
 
 Writing an object is reading it in reverse: we compute the hash,
 insert the header, zlib-compress everything and write the result in
-place.  This really shouldn't require much explanation, just notice
-that the hash is computed *after* the header is added.
+the correct location.  This really shouldn't require much explanation,
+just notice that the hash is computed *after* the header is added (so
+it's the hash of the object itself, uncompressed, not just its contents)
 
 #+BEGIN_SRC python :tangle libwyag.py
   def object_write(obj, repo=None):
@@ -886,11 +895,11 @@ that the hash is computed *after* the header is added.
 We said earlier that the type header could be one of four: =blob=,
 =commit=, =tag= and =tree= --- so git has four object types.
 
-Out of those four types, blobs are the simplest, because they have no
-actual format.  Blobs are user data: the content of every file you
-put in git (=main.c=, =logo.png=, =README.md=) is stored as a blob.
-That makes them easy to manipulate, because they have no actual syntax
-or constraints beyond the basic object storage mechanism: they're just
+Blobs are the simplest of those four types, because they have no
+actual format.  Blobs are user data: the content of every file you put
+in git (=main.c=, =logo.png=, =README.md=) is stored as a blob.  That
+makes them easy to manipulate, because they have no actual syntax or
+constraints beyond the basic object storage mechanism: they're just
 unspecified data.  Creating a =GitBlob= class is thus trivial, the
 =serialize= and =deserialize= functions just have to store and return
 their input unmodified.
@@ -911,10 +920,9 @@ their input unmodified.
 :CUSTOM_ID: cmd-cat-file
 :END:
 
-With all that, we can now create =wyag cat-file=.  =git cat-file=
-simply prints the raw contents of an object to stdout, just
-uncompressed and header removed.  In a copy of [[https://github.com/thblt/write-yourself-a-git][wyag's source
-repository]], =git cat-file blob
+We can now create =wyag cat-file=.  =git cat-file= simply prints the
+raw contents of an object to stdout, uncompressed and without the git
+header.  In a clone of [[https://github.com/thblt/write-yourself-a-git][wyag's source repository]], =git cat-file blob
 e0695f14a412c29e252c998c81de1dde59658e4a= will show a version of the
 README.
 
@@ -941,7 +949,7 @@ The subparser is very simple:
                      help="The object to display")
 #+END_SRC
 
-And we can implement the functions, which just call into other logic:
+And we can implement the functions, which just call into existing code we wrote earlier:
 
 #+BEGIN_SRC python :tangle libwyag.py
   def cmd_cat_file(args):
@@ -965,10 +973,9 @@ def object_find(repo, name, fmt=None, follow=True):
 The reason for this strange small function is that Git has a /lot/ of
 ways to refer to objects: full hash, short hash, tags...
 =object_find()= will be our name resolution function.  We'll only
-implement it [[#object_find][later]], so this is just a temporary placeholder (so our
-code can run already, without the real version).  This means that
-until we implement the real thing, the only way we can refer to an
-object will be by its full hash.
+implement it [[#object_find][later]], so this is just a temporary placeholder.  This
+means that until we implement the real thing, the only way we can
+refer to an object will be by its full hash.
 
 ** The hash-object command
 :PROPERTIES:
@@ -980,10 +987,11 @@ though. =hash-object= is basically the opposite of =cat-file=: it
 reads a file, computes its hash as an object, either storing it in the
 repository (if the -w flag is passed) or just printing its hash.
 
-The basic syntax of =git hash-object= looks like this:
+The syntax of =wyag hash-object= is a simplification of =git
+hash-object=:
 
 #+BEGIN_EXAMPLE
-  git hash-object [-w] [-t TYPE] FILE
+  wyag hash-object [-w] [-t TYPE] FILE
 #+END_EXAMPLE
 
 Which converts to:
@@ -1024,8 +1032,9 @@ bridge function:
           print(sha)
 #+END_SRC
 
-and the actual implementation.  The =repo= argument is optional, and the
-object isn't written if it is =None= (this is handled in =object_write()=, above):
+The actual implementation is also trivial.  The =repo= argument is
+optional, and the object isn't written if it is =None= (this is
+handled in =object_write()=, above):
 
 #+BEGIN_SRC python :tangle libwyag.py
     def object_hash(fd, fmt, repo=None):
