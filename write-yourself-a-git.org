@@ -31,10 +31,6 @@
 :CUSTOM_ID: intro
 :END:
 
-#+begin_note
-  (August 2023) Wyag is now complete!
-#+end_note
-
 This article is an attempt at explaining the [[https://git-scm.com/][Git version control
 system]] from the bottom up, that is, starting at the most fundamental
 level moving up from there.  This does not sound too easy, and has
