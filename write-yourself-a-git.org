@@ -1500,8 +1500,11 @@ it reached in input data:
       # and read the path
       path = raw[x+1:y]
 
-      # Read the SHA and convert to a hex string
-      sha = format(int.from_bytes(raw[y+1:y+21], "big"), "040x")
+      # Read the SHA…
+      raw_sha = int.from_bytes(raw[y+1:y+21], "big")
+      # and convert it into an hex string, padded to 40 chars
+      # with zeros if needed.
+      sha = format(raw_sha, "040x")
       return y+21, GitTreeLeaf(mode, path.decode("utf8"), sha)
 #+END_SRC
 
