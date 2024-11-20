@@ -3294,9 +3294,8 @@ index stores: creation/modification time, and so on)
           # Find and read the index.  It was modified by rm.  (This isn't
           # optimal, good enough for wyag!)
           #
-          # @FIXME, though: we could just
-          # move the index through commands instead of reading and writing
-          # it over again.
+          # @FIXME, though: we could just move the index through
+          # commands instead of reading and writing it over again.
           index = index_read(repo)
 
           for (abspath, relpath) in clean_paths:
