@@ -230,14 +230,14 @@ or merge them all in a single line)
    [[https://docs.python.org/3/library/argparse.html][argparse]] that can do 99% of the job for us.
 
    #+BEGIN_SRC python :tangle libwyag.py
-   import argparse
+     import argparse
    #+END_SRC
 
  - We'll need a few more container types than the base lib provides,
    most notably an =OrderedDict=.  It's in [[https://docs.python.org/3/library/collections.html#collections.OrderedDict][collections]].
 
    #+BEGIN_SRC python :tangle libwyag.py
-   import collections
+     import collections
    #+END_SRC
 
  - Git uses a configuration file format that is basically Microsoft's
@@ -245,7 +245,7 @@ or merge them all in a single line)
    files.
 
    #+BEGIN_SRC python :tangle libwyag.py
-   import configparser
+     import configparser
    #+END_SRC
 
  - We'll be doing some date/time manipulation:
@@ -273,37 +273,37 @@ or merge them all in a single line)
  - Git uses the SHA-1 function quite extensively.  In Python, it's in [[https://docs.python.org/3/library/hashlib.html][hashlib]].
 
    #+BEGIN_SRC python :tangle libwyag.py
-   import hashlib
+     import hashlib
    #+END_SRC
 
  - Just one function from [[https://docs.python.org/3/library/math.html][math]]:
 
    #+BEGIN_SRC python :tangle libwyag.py
-   from math import ceil
+     from math import ceil
    #+END_SRC
 
  - [[https://docs.python.org/3/library/os.html][os]] and [[https://docs.python.org/3/library/os.path.html][os.path]] provide some nice filesystem abstraction routines.
 
    #+BEGIN_SRC python :tangle libwyag.py
-   import os
+     import os
    #+END_SRC
 
  - we use /just a bit/ of regular expressions:
 
    #+BEGIN_SRC python :tangle libwyag.py
-   import re
+     import re
    #+END_SRC
 
  - We also need [[https://docs.python.org/3/library/sys.html][sys]] to access the actual command-line arguments (in =sys.argv=):
 
    #+BEGIN_SRC python :tangle libwyag.py
-   import sys
+     import sys
    #+END_SRC
 
  - Git compresses everything using zlib.  Python [[https://docs.python.org/3/library/zlib.html][has that]], too:
 
    #+BEGIN_SRC python :tangle libwyag.py
-   import zlib
+     import zlib
    #+END_SRC
 
 Imports are done.  We'll be working with command-line arguments a lot.
@@ -580,30 +580,30 @@ command, we're only going to need two more things:
    argument.
 
    #+BEGIN_SRC python :tangle libwyag.py
-   argsp = argsubparsers.add_parser("init", help="Initialize a new, empty repository.")
+     argsp = argsubparsers.add_parser("init", help="Initialize a new, empty repository.")
    #+END_SRC
 
    In the case of =init=, there's a single, optional,
    positional argument: the path where to init the repo.  It defaults
    to =.=, the current directory:
 
-    #+BEGIN_SRC python :tangle libwyag.py
-    argsp.add_argument("path",
-                       metavar="directory",
-                       nargs="?",
-                       default=".",
-                       help="Where to create the repository.")
+   #+BEGIN_SRC python :tangle libwyag.py
+     argsp.add_argument("path",
+                        metavar="directory",
+                        nargs="?",
+                        default=".",
+                        help="Where to create the repository.")
 
-    #+END_SRC
+   #+END_SRC
 
 2. We also need a "bridge" function that will read argument values
    from the object returned by argparse and call the actual
    function with correct values.
 
-    #+BEGIN_SRC python :tangle libwyag.py
-    def cmd_init(args):
-        repo_create(args.path)
-    #+END_SRC
+   #+BEGIN_SRC python :tangle libwyag.py
+   def cmd_init(args):
+       repo_create(args.path)
+   #+END_SRC
 
 And we're done!  If you've followed these steps, you should now be
 able to =wyag init= a git repository anywhere:
@@ -632,26 +632,26 @@ current directory and recursing back to =/=.  To identify a path as a
 repository, it will check for the presence of a =.git= directory.
 
 #+BEGIN_SRC python :tangle libwyag.py
-def repo_find(path=".", required=True):
-    path = os.path.realpath(path)
+  def repo_find(path=".", required=True):
+      path = os.path.realpath(path)
 
-    if os.path.isdir(os.path.join(path, ".git")):
-        return GitRepository(path)
+      if os.path.isdir(os.path.join(path, ".git")):
+          return GitRepository(path)
 
-    # If we haven't returned, recurse in parent, if w
-    parent = os.path.realpath(os.path.join(path, ".."))
+      # If we haven't returned, recurse in parent, if w
+      parent = os.path.realpath(os.path.join(path, ".."))
 
-    if parent == path:
-        # Bottom case
-        # os.path.join("/", "..") == "/":
-        # If parent==path, then path is root.
-        if required:
-            raise Exception("No git directory.")
-        else:
-            return None
+      if parent == path:
+          # Bottom case
+          # os.path.join("/", "..") == "/":
+          # If parent==path, then path is root.
+          if required:
+              raise Exception("No git directory.")
+          else:
+              return None
 
-    # Recursive case
-    return repo_find(parent, required)
+      # Recursive case
+      return repo_find(parent, required)
 #+END_SRC
 
 And we're done with repositories!
@@ -3178,8 +3178,8 @@ is what the =git rm= command does.
   argsp.add_argument("path", nargs="+", help="Files to remove")
 
   def cmd_rm(args):
-    repo = repo_find()
-    rm(repo, args.path)
+      repo = repo_find()
+      rm(repo, args.path)
 #+END_src
 
 The =rm= function is a bit long, but it's very simple.  It takes a
@@ -3192,41 +3192,41 @@ exposed in the =wyag rm= command).
 
 #+BEGIN_SRC python :tangle libwyag.py
   def rm(repo, paths, delete=True, skip_missing=False):
-    # Find and read the index
-    index = index_read(repo)
+      # Find and read the index
+      index = index_read(repo)
 
-    worktree = repo.worktree + os.sep
+      worktree = repo.worktree + os.sep
 
-    # Make paths absolute
-    abspaths = list()
-    for path in paths:
-      abspath = os.path.abspath(path)
-      if abspath.startswith(worktree):
-        abspaths.append(abspath)
-      else:
-        raise Exception("Cannot remove paths outside of worktree: {}".format(paths))
+      # Make paths absolute
+      abspaths = list()
+      for path in paths:
+          abspath = os.path.abspath(path)
+          if abspath.startswith(worktree):
+              abspaths.append(abspath)
+          else:
+              raise Exception("Cannot remove paths outside of worktree: {}".format(paths))
 
-    kept_entries = list()
-    remove = list()
+      kept_entries = list()
+      remove = list()
 
-    for e in index.entries:
-      full_path = os.path.join(repo.worktree, e.name)
+      for e in index.entries:
+          full_path = os.path.join(repo.worktree, e.name)
 
-      if full_path in abspaths:
-        remove.append(full_path)
-        abspaths.remove(full_path)
-      else:
-        kept_entries.append(e) # Preserve entry
+          if full_path in abspaths:
+              remove.append(full_path)
+              abspaths.remove(full_path)
+          else:
+              kept_entries.append(e) # Preserve entry
 
-    if len(abspaths) > 0 and not skip_missing:
-      raise Exception("Cannot remove paths not in the index: {}".format(abspaths))
+      if len(abspaths) > 0 and not skip_missing:
+          raise Exception("Cannot remove paths not in the index: {}".format(abspaths))
 
-    if delete:
-      for path in remove:
-        os.unlink(path)
+      if delete:
+          for path in remove:
+              os.unlink(path)
 
-    index.entries = kept_entries
-    index_write(repo, index)
+      index.entries = kept_entries
+      index_write(repo, index)
 #+END_SRC
 
 And we can now delete files with =wyag rm=.
@@ -3254,8 +3254,8 @@ PATH is one or more file(s) to stage.  The bridge is as boring as can be.
   argsp.add_argument("path", nargs="+", help="Files to add")
 
   def cmd_add(args):
-    repo = repo_find()
-    add(repo, args.path)
+      repo = repo_find()
+      add(repo, args.path)
 #+END_src
 
 The main difference with =rm= is that =add= needs to create an index
@@ -3266,48 +3266,48 @@ index stores: creation/modification time, and so on)
 #+BEGIN_SRC python :tangle libwyag.py
   def add(repo, paths, delete=True, skip_missing=False):
 
-    # First remove all paths from the index, if they exist.
-    rm (repo, paths, delete=False, skip_missing=True)
+      # First remove all paths from the index, if they exist.
+      rm (repo, paths, delete=False, skip_missing=True)
 
-    worktree = repo.worktree + os.sep
+      worktree = repo.worktree + os.sep
 
-    # Convert the paths to pairs: (absolute, relative_to_worktree).
-    # Also delete them from the index if they're present.
-    clean_paths = list()
-    for path in paths:
-      abspath = os.path.abspath(path)
-      if not (abspath.startswith(worktree) and os.path.isfile(abspath)):
-        raise Exception("Not a file, or outside the worktree: {}".format(paths))
-      relpath = os.path.relpath(abspath, repo.worktree)
-      clean_paths.append((abspath,  relpath))
+      # Convert the paths to pairs: (absolute, relative_to_worktree).
+      # Also delete them from the index if they're present.
+      clean_paths = list()
+      for path in paths:
+          abspath = os.path.abspath(path)
+          if not (abspath.startswith(worktree) and os.path.isfile(abspath)):
+              raise Exception("Not a file, or outside the worktree: {}".format(paths))
+          relpath = os.path.relpath(abspath, repo.worktree)
+          clean_paths.append((abspath,  relpath))
 
-      # Find and read the index.  It was modified by rm.  (This isn't
-      # optimal, good enough for wyag!)
-      #
-      # @FIXME, though: we could just
-      # move the index through commands instead of reading and writing
-      # it over again.
-      index = index_read(repo)
+          # Find and read the index.  It was modified by rm.  (This isn't
+          # optimal, good enough for wyag!)
+          #
+          # @FIXME, though: we could just
+          # move the index through commands instead of reading and writing
+          # it over again.
+          index = index_read(repo)
 
-      for (abspath, relpath) in clean_paths:
-        with open(abspath, "rb") as fd:
-          sha = object_hash(fd, b"blob", repo)
+          for (abspath, relpath) in clean_paths:
+              with open(abspath, "rb") as fd:
+                  sha = object_hash(fd, b"blob", repo)
 
-        stat = os.stat(abspath)
+              stat = os.stat(abspath)
 
-        ctime_s = int(stat.st_ctime)
-        ctime_ns = stat.st_ctime_ns % 10**9
-        mtime_s = int(stat.st_mtime)
-        mtime_ns = stat.st_mtime_ns % 10**9
+              ctime_s = int(stat.st_ctime)
+              ctime_ns = stat.st_ctime_ns % 10**9
+              mtime_s = int(stat.st_mtime)
+              mtime_ns = stat.st_mtime_ns % 10**9
 
-        entry = GitIndexEntry(ctime=(ctime_s, ctime_ns), mtime=(mtime_s, mtime_ns), dev=stat.st_dev, ino=stat.st_ino,
-                              mode_type=0b1000, mode_perms=0o644, uid=stat.st_uid, gid=stat.st_gid,
-                              fsize=stat.st_size, sha=sha, flag_assume_valid=False,
-                              flag_stage=False, name=relpath)
-        index.entries.append(entry)
+              entry = GitIndexEntry(ctime=(ctime_s, ctime_ns), mtime=(mtime_s, mtime_ns), dev=stat.st_dev, ino=stat.st_ino,
+                                    mode_type=0b1000, mode_perms=0o644, uid=stat.st_uid, gid=stat.st_gid,
+                                    fsize=stat.st_size, sha=sha, flag_assume_valid=False,
+                                    flag_stage=False, name=relpath)
+              index.entries.append(entry)
 
-      # Write the index back
-      index_write(repo, index)
+          # Write the index back
+          index_write(repo, index)
 #+END_SRC
 
 ** The commit command
