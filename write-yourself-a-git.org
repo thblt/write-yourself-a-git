@@ -3206,9 +3206,16 @@ exposed in the =wyag rm= command).
           else:
               raise Exception("Cannot remove paths outside of worktree: {}".format(paths))
 
+
+      # The list of entries to *keep*, which we will write back to the
+      # index.
       kept_entries = list()
+      # The list of removed paths, which we'll use after index update
+      # to physically remove the actual paths from the filesystem.
       remove = list()
 
+      # Now iterate over the list of entries, and remove those whose
+      # paths we find in abspaths.  Preserve the others in kept_entries.
       for e in index.entries:
           full_path = os.path.join(repo.worktree, e.name)
 
@@ -3218,13 +3225,16 @@ exposed in the =wyag rm= command).
           else:
               kept_entries.append(e) # Preserve entry
 
+      # If abspaths is empty, it means some paths weren't in the index.
       if len(abspaths) > 0 and not skip_missing:
           raise Exception("Cannot remove paths not in the index: {}".format(abspaths))
 
+      # Physically delete paths from filesystem.
       if delete:
           for path in remove:
               os.unlink(path)
 
+      # Update the list of entries in the index, and write it back.
       index.entries = kept_entries
       index_write(repo, index)
 #+END_SRC
