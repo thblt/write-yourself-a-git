@@ -2224,7 +2224,7 @@ $ wyag rev-parse --wyag-type commit HEAD
 6c22393f5e3830d15395fd8d2f8b0cf8eb40dd58
 $ wyag rev-parse --wyag-type tree HEAD
 11d33fad71dbac72840aff1447e0d080c7484361
-$ wyag rev-parse --wyag-type tree HEAD
+$ wyag rev-parse --wyag-type tag HEAD
 None
 #+end_example
 
