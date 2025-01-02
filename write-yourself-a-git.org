@@ -3288,16 +3288,16 @@ index stores: creation/modification time, and so on)
           relpath = os.path.relpath(abspath, repo.worktree)
           clean_paths.append((abspath,  relpath))
 
-          # Find and read the index.  It was modified by rm.  (This isn't
-          # optimal, good enough for wyag!)
-          #
-          # @FIXME, though: we could just move the index through
-          # commands instead of reading and writing it over again.
-          index = index_read(repo)
+      # Find and read the index.  It was modified by rm.  (This isn't
+      # optimal, good enough for wyag!)
+      #
+      # @FIXME, though: we could just move the index through
+      # commands instead of reading and writing it over again.
+      index = index_read(repo)
 
-          for (abspath, relpath) in clean_paths:
-              with open(abspath, "rb") as fd:
-                  sha = object_hash(fd, b"blob", repo)
+      for (abspath, relpath) in clean_paths:
+          with open(abspath, "rb") as fd:
+              sha = object_hash(fd, b"blob", repo)
 
               stat = os.stat(abspath)
 
@@ -3312,8 +3312,8 @@ index stores: creation/modification time, and so on)
                                     flag_stage=False, name=relpath)
               index.entries.append(entry)
 
-          # Write the index back
-          index_write(repo, index)
+      # Write the index back
+      index_write(repo, index)
 #+END_SRC
 
 ** The commit command
