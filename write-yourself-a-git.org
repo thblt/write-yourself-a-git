@@ -3195,14 +3195,13 @@ exposed in the =wyag rm= command).
       worktree = repo.worktree + os.sep
 
       # Make paths absolute
-      abspaths = list()
+      abspaths = set()
       for path in paths:
           abspath = os.path.abspath(path)
           if abspath.startswith(worktree):
-              abspaths.append(abspath)
+              abspaths.add(abspath)
           else:
               raise Exception("Cannot remove paths outside of worktree: {}".format(paths))
-
 
       # The list of entries to *keep*, which we will write back to the
       # index.
@@ -3280,13 +3279,13 @@ index stores: creation/modification time, and so on)
 
       # Convert the paths to pairs: (absolute, relative_to_worktree).
       # Also delete them from the index if they're present.
-      clean_paths = list()
+      clean_paths = set()
       for path in paths:
           abspath = os.path.abspath(path)
           if not (abspath.startswith(worktree) and os.path.isfile(abspath)):
               raise Exception("Not a file, or outside the worktree: {}".format(paths))
           relpath = os.path.relpath(abspath, repo.worktree)
-          clean_paths.append((abspath,  relpath))
+          clean_paths.add((abspath,  relpath))
 
       # Find and read the index.  It was modified by rm.  (This isn't
       # optimal, good enough for wyag!)
