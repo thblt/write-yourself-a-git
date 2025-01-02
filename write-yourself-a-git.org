@@ -164,8 +164,8 @@ We'll split the code into two files:
  - An executable, called =wyag=;
  - A Python library, called =libwyag.py=;
 
-Now, every software project starts with a boatload of boilerplate, so let's
-get this over with.
+Now, every software project starts with a boatload of boilerplate, so
+let's get this over with.
 
 We'll begin by creating the (very short) executable.  Create a new
 file called =wyag= in your text editor, and copy the following few
@@ -231,13 +231,6 @@ or merge them all in a single line)
 
    #+BEGIN_SRC python :tangle libwyag.py
      import argparse
-   #+END_SRC
-
- - We'll need a few more container types than the base lib provides,
-   most notably an =OrderedDict=.  It's in [[https://docs.python.org/3/library/collections.html#collections.OrderedDict][collections]].
-
-   #+BEGIN_SRC python :tangle libwyag.py
-     import collections
    #+END_SRC
 
  - Git uses a configuration file format that is basically Microsoft's
@@ -1143,68 +1136,71 @@ tags have the very same format, so we'll use it for both objects types.
 I use KVLM to mean "Key-Value List with Message".
 
 #+BEGIN_SRC python :tangle libwyag.py
-   def kvlm_parse(raw, start=0, dct=None):
-       if not dct:
-           dct = collections.OrderedDict()
-           # You CANNOT declare the argument as dct=OrderedDict() or all
-           # call to the functions will endlessly grow the same dict.
+  def kvlm_parse(raw, start=0, dct=None):
+      if not dct:
+          dct = dict()
+          # You CANNOT declare the argument as dct=dict() or all call to
+          # the functions will endlessly grow the same dict.
 
-       # This function is recursive: it reads a key/value pair, then call
-       # itself back with the new position.  So we first need to know
-       # where we are: at a keyword, or already in the messageQ
+      # This function is recursive: it reads a key/value pair, then call
+      # itself back with the new position.  So we first need to know
+      # where we are: at a keyword, or already in the messageQ
 
-       # We search for the next space and the next newline.
-       spc = raw.find(b' ', start)
-       nl = raw.find(b'\n', start)
+      # We search for the next space and the next newline.
+      spc = raw.find(b' ', start)
+      nl = raw.find(b'\n', start)
 
-       # If space appears before newline, we have a keyword.  Otherwise,
-       # it's the final message, which we just read to the end of the file.
+      # If space appears before newline, we have a keyword.  Otherwise,
+      # it's the final message, which we just read to the end of the file.
 
-       # Base case
-       # =========
-       # If newline appears first (or there's no space at all, in which
-       # case find returns -1), we assume a blank line.  A blank line
-       # means the remainder of the data is the message.  We store it in
-       # the dictionary, with None as the key, and return.
-       if (spc < 0) or (nl < spc):
-           assert nl == start
-           dct[None] = raw[start+1:]
-           return dct
+      # Base case
+      # =========
+      # If newline appears first (or there's no space at all, in which
+      # case find returns -1), we assume a blank line.  A blank line
+      # means the remainder of the data is the message.  We store it in
+      # the dictionary, with None as the key, and return.
+      if (spc < 0) or (nl < spc):
+          assert nl == start
+          dct[None] = raw[start+1:]
+          return dct
 
-       # Recursive case
-       # ==============
-       # we read a key-value pair and recurse for the next.
-       key = raw[start:spc]
+      # Recursive case
+      # ==============
+      # we read a key-value pair and recurse for the next.
+      key = raw[start:spc]
 
-       # Find the end of the value.  Continuation lines begin with a
-       # space, so we loop until we find a "\n" not followed by a space.
-       end = start
-       while True:
-           end = raw.find(b'\n', end+1)
-           if raw[end+1] != ord(' '): break
+      # Find the end of the value.  Continuation lines begin with a
+      # space, so we loop until we find a "\n" not followed by a space.
+      end = start
+      while True:
+          end = raw.find(b'\n', end+1)
+          if raw[end+1] != ord(' '): break
 
-       # Grab the value
-       # Also, drop the leading space on continuation lines
-       value = raw[spc+1:end].replace(b'\n ', b'\n')
+      # Grab the value
+      # Also, drop the leading space on continuation lines
+      value = raw[spc+1:end].replace(b'\n ', b'\n')
 
-       # Don't overwrite existing data contents
-       if key in dct:
-           if type(dct[key]) == list:
-               dct[key].append(value)
-           else:
-               dct[key] = [ dct[key], value ]
-       else:
-           dct[key]=value
+      # Don't overwrite existing data contents
+      if key in dct:
+          if type(dct[key]) == list:
+              dct[key].append(value)
+          else:
+              dct[key] = [ dct[key], value ]
+      else:
+          dct[key]=value
 
-       return kvlm_parse(raw, start=end+1, dct=dct)
+      return kvlm_parse(raw, start=end+1, dct=dct)
 #+END_SRC
 
 #+begin_note
 <<identity-rules>> *Object identity rules*
 
-We use an =OrderedDict= (a dictionary/hashmap where keys are ordered)
-so fields always appear in the same order.  This matters, because Git
-has *two strong rules about object identity*:
+We use dictionaries (HashMaps) to store key/value associations, but we
+rely on a specific feature of Python dictionaries: *they preserve
+insertion order*.  It means that when we'll write back an object,
+we'll iterate over the dictionary and get the fields back in the exact
+order they were added.  This matters, because Git has *two strong
+rules about object identity*:
 
  1. The first rule is that *the same name will always refer to the
     same object*.  We've seen this one already, it's just a
@@ -1798,9 +1794,9 @@ stupid recursive function to collect refs and return them as a dict:
   def ref_list(repo, path=None):
       if not path:
           path = repo_dir(repo, "refs")
-      ret = collections.OrderedDict()
-      # Git shows refs sorted.  To do the same, we use
-      # an OrderedDict and sort the output of listdir
+      ret = dict()
+      # Git shows refs sorted.  To do the same, we sort the output of
+      # listdir
       for f in sorted(os.listdir(path)):
           can = os.path.join(path, f)
           if os.path.isdir(can):
@@ -1962,7 +1958,7 @@ And we just need one more function to actually create the tag:
       if create_tag_object:
           # create tag object (commit)
           tag = GitTag(repo)
-          tag.kvlm = collections.OrderedDict()
+          tag.kvlm = dict()
           tag.kvlm[b'object'] = sha.encode()
           tag.kvlm[b'type'] = b'commit'
           tag.kvlm[b'tag'] = name.encode()
