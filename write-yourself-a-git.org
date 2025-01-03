@@ -145,7 +145,7 @@ some basic Git (obviously), some basic Python, some basic shell.
     function I had simply… forgotten to write (that was [[https://github.com/thblt/write-yourself-a-git/issues/9][#9]]).
   - Github user [[https://github.com/hjlarry][hjlarry]] fixed multiple issues in [[https://github.com/thblt/write-yourself-a-git/pull/22][#22]].
   - GitHub user [[https://github.com/cutebbb][cutebbb]] implemented the first version of ls-files in
-    [[https://github.com/thblt/write-yourself-a-git/pull/27/][#27]], and by doing so finally brought wyag to the wonders of the
+    [[https://github.com/thblt/write-yourself-a-git/pull/32/][#32]], and by doing so finally brought wyag to the wonders of the
     staging area!
 #+end_note
 
