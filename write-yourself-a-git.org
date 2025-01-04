@@ -85,9 +85,9 @@ details (if something is not clear, please [[#feedback][report it]]!) a very
 simplified version of Git core commands.  I will keep the code simple
 and to the point, so =wyag= won't come anywhere near the power of the
 real git command-line --- but what's missing will be obvious, and
-trivial to implement by anyone who wants to give it a try.  "Upgrading
+trivial to implement by anyone who wants to give it a try.  “Upgrading
 wyag to a full-featured git library and CLI is left as an exercise to
-the reader", as they say.
+the reader”, as they say.
 
 More precisely, we'll implement:
 
@@ -226,9 +226,9 @@ You're done!
 # <<file_header>>
    #+END_SRC
 
-Now for the library.  it must be called =libwyag.py=, and be in the same
-directory as the =wyag= executable.  Begin by opening the empty =libwyag.py= in your
-text editor.
+Now for the library.  it must be called =libwyag.py=, and be in the
+same directory as the =wyag= executable.  Begin by opening the empty
+=libwyag.py= in your text editor.
 
 We're first going to need a bunch of imports (just copy each import,
 or merge them all in a single line)
@@ -309,18 +309,18 @@ or merge them all in a single line)
 
 Imports are done.  We'll be working with command-line arguments a lot.
 Python provides a simple yet reasonably powerful parsing library,
-=argparse=.  It's a nice library, but its interface may not be the most
-intuitive ever; if need, refer to its [[https://docs.python.org/3/library/argparse.html][documentation]].
+=argparse=.  It's a nice library, but its interface may not be the
+most intuitive ever; if need, refer to its [[https://docs.python.org/3/library/argparse.html][documentation]].
 
 #+BEGIN_SRC python :tangle libwyag.py
   argparser = argparse.ArgumentParser(description="The stupidest content tracker")
 #+END_SRC
 
-We'll need to handle subcommands (as in git: =init=, =commit=, etc.)  In
-argparse slang, these are called "subparsers".  At this point we only
-need to declare that our CLI will use some, and that all invocation
-will actually /require/ one --- you don't just call =git=, you
-call =git COMMAND=.
+We'll need to handle subcommands (as in git: =init=, =commit=, etc.)
+In argparse slang, these are called "subparsers".  At this point we
+only need to declare that our CLI will use some, and that all
+invocation will actually /require/ one --- you don't just call =git=,
+you call =git COMMAND=.
 
 #+BEGIN_SRC python :tangle libwyag.py
   argsubparsers = argparser.add_subparsers(title="Commands", dest="command")
@@ -376,11 +376,11 @@ We'll obviously need some abstraction for a repository: almost every
 time we run a git command, we're trying to do something to a
 repository, to create it, read from it or modify it.
 
-A git repository is made of two things: a "work tree", where the
-files meant to be in version control live, and a "git directory",
-where Git stores its own data.  In most cases, the worktree is a
-regular directory and the git directory is a child directory of the
-worktree, called =.git=.
+A git repository is made of two things: a “work tree”, where the files
+meant to be in version control live, and a “git directory”, where Git
+stores its own data.  In most cases, the worktree is a regular
+directory and the git directory is a child directory of the worktree,
+called =.git=.
 
 Git supports /much more/ cases (bare repo, separated gitdir, etc) but
 we won't need them: we'll stick to the basic approach of
@@ -392,14 +392,15 @@ To create a new =Repository= object, we only need to make a few checks:
  - We must verify that the directory exists, and contains a
    subdirectory called =.git=.
 
- - We read its configuration in =.git/config= (it's just an INI file)
-   and control that =core.repositoryformatversion= is 0.  More on that
-   field in a moment.
+ - We then read its configuration in =.git/config= (it's just an INI
+   file) and check that =core.repositoryformatversion= is 0.  More on
+   that field in a moment.
 
-The constructor takes an optional =force= which disables all checks.
-That's because the =repo_create()= function which we'll create later uses
-a =Repository= object to /create/ the repo.  So we need a way to create
-repository even from (still) invalid filesystem locations.
+Our constructor takes an optional =force= argument which disables all
+checks.  That's because the =repo_create()= function which we'll
+create later will use a =Repository= object to /create/ the repo.  So
+we need a way to create such objects even from (still) invalid
+filesystem locations.
 
 #+BEGIN_SRC python :tangle libwyag.py
   class GitRepository (object):
