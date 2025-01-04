@@ -31,6 +31,14 @@
 :CUSTOM_ID: intro
 :END:
 
+#+begin_note
+  Recent changes (January 2025):
+
+   - =OrderedDict= have been replaced by regular dicts.
+   - Most string formatting have been replaced with f-strings.
+   - Multible bugs fixed in =tag_create=.
+#+end_note
+
 This article is an attempt at explaining the [[https://git-scm.com/][Git version control
 system]] from the bottom up, that is, starting at the most fundamental
 level moving up from there.  This does not sound too easy, and has
