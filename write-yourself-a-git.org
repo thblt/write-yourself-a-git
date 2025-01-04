@@ -406,7 +406,7 @@ repository even from (still) invalid filesystem locations.
           self.gitdir = os.path.join(path, ".git")
 
           if not (force or os.path.isdir(self.gitdir)):
-              raise Exception("Not a Git repository %s" % path)
+              raise Exception(f"Not a Git repository {path}")
 
           # Read configuration file in .git/config
           self.conf = configparser.ConfigParser()
@@ -420,7 +420,7 @@ repository even from (still) invalid filesystem locations.
           if not force:
               vers = int(self.conf.get("core", "repositoryformatversion"))
               if vers != 0:
-                  raise Exception("Unsupported repositoryformatversion %s" % vers)
+                  raise Exception("Unsupported repositoryformatversion: {vers}")
 #+END_SRC
 
 We're going to be manipulating *lots* of paths in repositories.  We may
@@ -463,7 +463,7 @@ directories up to the last component.
           if (os.path.isdir(path)):
               return path
           else:
-              raise Exception("Not a directory %s" % path)
+              raise Exception(f"Not a directory {path}")
 
       if mkdir:
           os.makedirs(path)
@@ -500,9 +500,9 @@ create if doesn't already exist) and create the *git directory* inside
 
       if os.path.exists(repo.worktree):
           if not os.path.isdir(repo.worktree):
-              raise Exception ("%s is not a directory!" % path)
+              raise Exception (f"{path} is not a directory!")
           if os.path.exists(repo.gitdir) and os.listdir(repo.gitdir):
-              raise Exception("%s is not empty!" % path)
+              raise Exception (f"{path} is not empty!")
       else:
           os.makedirs(repo.worktree)
 
@@ -836,7 +836,7 @@ object's format.
           y = raw.find(b'\x00', x)
           size = int(raw[x:y].decode("ascii"))
           if size != len(raw)-y-1:
-              raise Exception("Malformed object {0}: bad length".format(sha))
+              raise Exception(f"Malformed object {sha}: bad length")
 
           # Pick constructor
           match fmt:
@@ -845,7 +845,7 @@ object's format.
               case b'tag'    : c=GitTag
               case b'blob'   : c=GitBlob
               case _:
-                  raise Exception("Unknown type {0} for object {1}".format(fmt.decode("ascii"), sha))
+                  raise Exception(f"Unknown type {fmt.decode("ascii")} for object {sha}")
 
           # Call constructor and return object
           return c(raw[y+1:])
@@ -1039,7 +1039,7 @@ handled in =object_write()=, above):
             case b'tree'   : obj=GitTree(data)
             case b'tag'    : obj=GitTag(data)
             case b'blob'   : obj=GitBlob(data)
-            case _: raise Exception("Unknown type %s!" % fmt)
+            case _: raise Exception(f"Unknown type {fmt}!")
 
         return object_write(obj, repo)
 #+END_SRC
@@ -1311,7 +1311,7 @@ dead, lookup "graphviz online" in your favorite search engine)
       if "\n" in message: # Keep only the first line
           message = message[:message.index("\n")]
 
-      print("  c_{0} [label=\"{1}: {2}\"]".format(sha, sha[0:7], message))
+      print(f"  c_{sha} [label=\"{sha[0:7]}: {message}\"]")
       assert commit.fmt==b'commit'
 
       if not b'parent' in commit.kvlm.keys():
@@ -1325,7 +1325,7 @@ dead, lookup "graphviz online" in your favorite search engine)
 
       for p in parents:
           p = p.decode("ascii")
-          print ("  c_{0} -> c_{1};".format(sha, p))
+          print (f"  c_{sha} -> c_{p};")
           log_graphviz(repo, p, seen)
 #+END_SRC
 
@@ -1629,16 +1629,10 @@ paths.
               case b'10': type = "blob" # A regular file.
               case b'12': type = "blob" # A symlink. Blob contents is link target.
               case b'16': type = "commit" # A submodule
-              case _: raise Exception("Weird tree leaf mode {}".format(item.mode))
+              case _: raise Exception(f"Weird tree leaf mode {item.mode}")
 
           if not (recursive and type=='tree'): # This is a leaf
-              print("{0} {1} {2}\t{3}".format(
-                  "0" * (6 - len(item.mode)) + item.mode.decode("ascii"),
-                  # Git's ls-tree displays the type
-                  # of the object pointed to.  We can do that too :)
-                  type,
-                  item.sha,
-                  os.path.join(prefix, item.path)))
+              print(f"{'0' * (6 - len(item.mode)) + item.mode.decode("ascii")} {type} {item.sha}\t{os.path.join(prefix, item.path)}")
           else: # This is a branch, recurse
               ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
 #+END_SRC
@@ -1690,9 +1684,9 @@ A wrapper function:
       # Verify that path is an empty directory
       if os.path.exists(args.path):
           if not os.path.isdir(args.path):
-              raise Exception("Not a directory {0}!".format(args.path))
+              raise Exception(f"Not a directory {args.path}!")
           if os.listdir(args.path):
-              raise Exception("Not empty {0}!".format(args.path))
+              raise Exception(f"Not empty {args.path}!")
       else:
           os.makedirs(args.path)
 
@@ -1820,12 +1814,9 @@ And, as usual, a subparser, a bridge, and a (recursive) worker function:
   def show_ref(repo, refs, with_hash=True, prefix=""):
       for k, v in refs.items():
           if type(v) == str:
-              print ("{0}{1}{2}".format(
-                  v + " " if with_hash else "",
-                  prefix + "/" if prefix else "",
-                  k))
+              print (f"{' ' if with_hash else ''}{'/' if prefix else ''}{k}")
           else:
-              show_ref(repo, v, with_hash=with_hash, prefix="{0}{1}{2}".format(prefix, "/" if prefix else "", k))
+              show_ref(repo, v, with_hash=with_hash, prefix=f"{prefix}{'/' if prefix else ''}{k}")
 #+END_SRC
 
 ** Tags as references
@@ -2131,10 +2122,10 @@ steps, since tags themselves can be tagged)
       sha = object_resolve(repo, name)
 
       if not sha:
-          raise Exception("No such reference {0}.".format(name))
+          raise Exception(f"No such reference {name}.")
 
       if len(sha) > 1:
-          raise Exception("Ambiguous reference {0}: Candidates are:\n - {1}.".format(name,  "\n - ".join(sha)))
+          raise Exception("Ambiguous reference {name}: Candidates are:\n - {'\n - '.join(sha)}.")
 
       sha = sha[0]
 
@@ -2475,7 +2466,7 @@ produce more elegant code in C than in Python…)
               raw_name = content[idx:idx+name_length]
               idx += name_length + 1
           else:
-              print("Notice: Name is 0x{:X} bytes long.".format(name_length))
+              print(f"Notice: Name is 0x{name_length:X} bytes long.")
               # This probably wasn't tested enough.  It works with a
               # path of exactly 0xFFF bytes.  Any extra bytes broke
               # something between git, my shell and my filesystem.
@@ -2528,31 +2519,20 @@ so we can display every single bit of info in the index file.
       repo = repo_find()
       index = index_read(repo)
       if args.verbose:
-          print("Index file format v{}, containing {} entries.".format(index.version, len(index.entries)))
+          print(f"Index file format v{index.version}, containing {len(index.entries)} entries.")
 
       for e in index.entries:
           print(e.name)
           if args.verbose:
-              print("  {} with perms: {:o}".format(
-                  { 0b1000: "regular file",
-                    0b1010: "symlink",
-                    0b1110: "git link" }[e.mode_type],
-                  e.mode_perms))
-              print("  on blob: {}".format(e.sha))
-              print("  created: {}.{}, modified: {}.{}".format(
-                  datetime.fromtimestamp(e.ctime[0])
-                  , e.ctime[1]
-                  , datetime.fromtimestamp(e.mtime[0])
-                  , e.mtime[1]))
-              print("  device: {}, inode: {}".format(e.dev, e.ino))
-              print("  user: {} ({})  group: {} ({})".format(
-                  pwd.getpwuid(e.uid).pw_name,
-                  e.uid,
-                  grp.getgrgid(e.gid).gr_name,
-                  e.gid))
-              print("  flags: stage={} assume_valid={}".format(
-                  e.flag_stage,
-                  e.flag_assume_valid))
+              entry_type = { 0b1000: "regular file",
+                             0b1010: "symlink",
+                             0b1110: "git link" }[e.mode_type]
+              print(f"  {entry_type} with perms: {e.mode_perms:o}")
+              print(f"  on blob: {e.sha}")
+              print(f"  created: {datetime.fromtimestamp(e.ctime[0])}.{e.ctime[1]}, modified: {datetime.fromtimestamp(e.mtime[0])}.{e.mtime[1]}")
+              print(f"  device: {e.dev}, inode: {e.ino}")
+              print(f"  user: {pwd.getpwuid(e.uid).pw_name} ({e.uid})  group: {grp.getgrgid(e.gid).gr_name} ({e.gid})")
+              print(f"  flags: stage={e.flag_stage} assume_valid={e.flag_assume_valid}")
 #+END_SRC
 
 If you run ls-files, you'll notice that on a “clean” worktree (an
@@ -2895,9 +2875,9 @@ branch, or the hash of the detached HEAD:
   def cmd_status_branch(repo):
       branch = branch_get_active(repo)
       if branch:
-          print("On branch {}.".format(branch))
+          print(f"On branch {branch}.")
       else:
-          print("HEAD detached at {}".format (object_find(repo, "HEAD")))
+          print(f"HEAD detached at {object_find(repo, 'HEAD')}")
 #+end_src
 
 *** Finding changes between HEAD and index
@@ -3201,7 +3181,7 @@ exposed in the =wyag rm= command).
           if abspath.startswith(worktree):
               abspaths.add(abspath)
           else:
-              raise Exception("Cannot remove paths outside of worktree: {}".format(paths))
+              raise Exception(f"Cannot remove paths outside of worktree: {paths}")
 
       # The list of entries to *keep*, which we will write back to the
       # index.
@@ -3223,7 +3203,7 @@ exposed in the =wyag rm= command).
 
       # If abspaths is empty, it means some paths weren't in the index.
       if len(abspaths) > 0 and not skip_missing:
-          raise Exception("Cannot remove paths not in the index: {}".format(abspaths))
+          raise Exception(f"Cannot remove paths not in the index: {abspaths}")
 
       # Physically delete paths from filesystem.
       if delete:
@@ -3283,7 +3263,7 @@ index stores: creation/modification time, and so on)
       for path in paths:
           abspath = os.path.abspath(path)
           if not (abspath.startswith(worktree) and os.path.isfile(abspath)):
-              raise Exception("Not a file, or outside the worktree: {}".format(paths))
+              raise Exception(f"Not a file, or outside the worktree: {paths}")
           relpath = os.path.relpath(abspath, repo.worktree)
           clean_paths.add((abspath,  relpath))
 
@@ -3361,7 +3341,7 @@ And just a simple function to grab, and format, the user identity:
   def gitconfig_user_get(config):
       if "user" in config:
           if "name" in config["user"] and "email" in config["user"]:
-              return "{} <{}>".format(config["user"]["name"], config["user"]["email"])
+              return f"{config['user']['name']} <{config['user']['email']}>"
       return None
 #+end_src
 
@@ -3533,7 +3513,7 @@ Here's the actual function:
 
                   # We transcode the mode: the entry stores it as integers,
                   # we need an octal ASCII representation for the tree.
-                  leaf_mode = "{:02o}{:04o}".format(entry.mode_type, entry.mode_perms).encode("ascii")
+                  leaf_mode = f"{entry.mode_type:02o}{entry.mode_perms:04o}".encode("ascii")
                   leaf = GitTreeLeaf(mode = leaf_mode, path=os.path.basename(entry.name), sha=entry.sha)
               else: # Tree.  We've stored it as a pair: (basename, SHA)
                   leaf = GitTreeLeaf(mode = b"040000", path=entry[0], sha=entry[1])
