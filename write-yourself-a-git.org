@@ -1242,7 +1242,7 @@ newline.
               ret += k + b' ' + (v.replace(b'\n', b'\n ')) + b'\n'
 
       # Append message
-      ret += b'\n' + kvlm[None] + b'\n'
+      ret += b'\n' + kvlm[None]
 
       return ret
 #+END_SRC
@@ -3551,6 +3551,8 @@ and the message:
       if parent:
           commit.kvlm[b"parent"] = parent.encode("ascii")
 
+      # Trim message and add a trailing \n
+      message = message.strip() + "\n"
       # Format timezone
       offset = int(timestamp.astimezone().utcoffset().total_seconds())
       hours = offset // 3600
