@@ -1820,14 +1820,15 @@ And, as usual, a subparser, a bridge, and a (recursive) worker function:
       refs = ref_list(repo)
       show_ref(repo, refs, prefix="refs")
 
-  def show_ref(repo, refs, with_hash=True, prefix=""):
+  def show_ref(repo, refs, prefix=""):
+      if prefix:
+          prefix = prefix + '/'
       for k, v in refs.items():
           if type(v) == str:
-              print (f"{' ' if with_hash else ''}{'/' if prefix else ''}{k}")
+              print (f"{v} {prefix}{k}")
           else:
-              show_ref(repo, v, with_hash=with_hash, prefix=f"{prefix}{'/' if prefix else ''}{k}")
+              show_ref(repo, v, prefix=f"{prefix}{k}")
 #+END_SRC
-
 ** Tags as references
 :PROPERTIES:
 :CUSTOM_ID: tags
