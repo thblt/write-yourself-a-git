@@ -1789,7 +1789,7 @@ SHA-1 identifier:
           return data
 #+END_SRC
 
-Let's create two small functions, and implement the =show-refs=
+Let's create two small functions, and implement the =show-ref=
 command --- it just lists all references in a repository.  First, a
 stupid recursive function to collect refs and return them as a dict:
 
