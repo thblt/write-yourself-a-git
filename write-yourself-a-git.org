@@ -2311,8 +2311,7 @@ new tree object.  To summarize:
 
 The index file is by far the most complicated piece of data a Git
 repository can hold.  Its complete documentation can be found in Git
-source tree at =Documentation/gitformat-index.txt=; you can browse it [[https://github.com/git/git/blob/master/Documentation/gitformat-index.txt][on
-the Github mirror]].  It's made of three parts:
+source tree or rendered [[https://git-scm.com/docs/index-format][on the git website]].  It's made of three parts:
 
   - An header with the format version number and the number of entries
     the index holds;
