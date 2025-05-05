@@ -2114,6 +2114,10 @@ than 1.
       if as_branch: # Did we find a branch?
           candidates.append(as_branch)
 
+      as_remote_branch = ref_resolve(repo, "refs/remotes/" + name)
+      if as_remote_branch: # Did we find a remote branch?
+          candidates.append(as_remote_branch)
+
       return candidates
 #+END_SRC
 
