@@ -2428,13 +2428,13 @@ produce more elegant code in C than in Python…)
       content = raw[12:]
       idx = 0
       for i in range(0, count):
-          # Read creation time, as a unix timestamp (seconds since
+          # Read metadata modification time, as a unix timestamp (seconds since
           # 1970-01-01 00:00:00, the "epoch")
           ctime_s =  int.from_bytes(content[idx: idx+4], "big")
-          # Read creation time, as nanoseconds after that timestamps,
+          # Read metadata modification time, as nanoseconds after that timestamps,
           # for extra precision.
           ctime_ns = int.from_bytes(content[idx+4: idx+8], "big")
-          # Same for modification time: first seconds from epoch.
+          # Same for content modification time: first seconds from epoch.
           mtime_s = int.from_bytes(content[idx+8: idx+12], "big")
           # Then extra nanoseconds
           mtime_ns = int.from_bytes(content[idx+12: idx+16], "big")
