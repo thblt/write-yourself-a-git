@@ -2430,7 +2430,7 @@ produce more elegant code in C than in Python…)
       for i in range(0, count):
           # Read creation time, as a unix timestamp (seconds since
           # 1970-01-01 00:00:00, the "epoch")
-          ctime_s =  int.from_bytes(content[idx: idx+4], "big")
+          ctime_s = int.from_bytes(content[idx: idx+4], "big")
           # Read creation time, as nanoseconds after that timestamps,
           # for extra precision.
           ctime_ns = int.from_bytes(content[idx+4: idx+8], "big")
@@ -2464,7 +2464,7 @@ produce more elegant code in C than in Python…)
           flag_assume_valid = (flags & 0b1000000000000000) != 0
           flag_extended = (flags & 0b0100000000000000) != 0
           assert not flag_extended
-          flag_stage =  flags & 0b0011000000000000
+          flag_stage = flags & 0b0011000000000000
           # Length of the name.  This is stored on 12 bits, some max
           # value is 0xFFF, 4095.  Since names can occasionally go
           # beyond that length, git treats 0xFFF as meaning at least
