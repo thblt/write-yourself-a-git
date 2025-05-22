@@ -3515,7 +3515,7 @@ Here's the actual function:
       # root tree.
       sha = None
 
-      # We ge through the sorted list of paths (dict keys)
+      # We go through the sorted list of paths (dict keys)
       for path in sorted_paths:
           # Prepare a new, empty tree object
           tree = GitTree()
