@@ -31,7 +31,6 @@
 :CUSTOM_ID: intro
 :END:
 
-
 #+NAME: monthyear
 #+begin_src emacs-lisp :exports none
   (format-time-string "%B %Y")
@@ -881,7 +880,7 @@ object's format.
 
 ** Writing objects
 :PROPERTIES:
-:object_write:
+:CUSTOM_ID: object_write
 :END:
 
 Writing an object is reading it in reverse: we compute the hash,
@@ -1405,21 +1404,269 @@ only linked to the past.  Commits have "memory", but no premonition.
 
 So what makes a commit?  To sum it up:
 
-- A tree object, which we'll discuss now, that is, the contents of a
-  worktree, files and directories;
-- Zero, one or more parents;
-- An author identity (name and email), and a timestamp;
-- A committer identity (name and email), and a timestamp;
-- An optional PGP signature
-- A message;
+- A *tree object,* which we'll discuss in detail in the next section,
+  that describes the contents of the commit: files and directories;
+- Zero, one or more *parents*;
+- An *author* identity (name and email), and a timestamp;
+- A *committer* identity (name and email), and a timestamp;
+- An optional PGP *signature*
+- A *message*;
 
 All this hashed together in a unique SHA-1 identifier.
 
-#+begin_note
-  *Wait, does that make Git a blockchain?*
+** Just a bit of theory: the git history is a Merkle DAG
+:PROPERTIES:
+:CUSTOM_ID: merkle-dags
+:END:
 
-  Because of cryptocurrencies, blockchains are all the hype these
-  days.  And yes, /in a way/, Git is a blockchain: it's a sequence of
+*** The commit history as a directed acyclic graph
+
+If you have even a minimal background in CS, you’ll have recognized
+that the data structure that holds the commit history is a graph.  A
+graph is a series of *nodes* (that can hold any kind of information:
+in git, those nodes are the commit objects themselves) connected by
+*edges*.  Below is a simple graph; its nodes are the little round boxes
+with letter labels, and its edges are the lines that connect them.
+
+#+name: example-graph
+#+BEGIN_SRC dot :file example-graph.svg :cmdline -Tsvg
+    digraph T {
+     edge [arrowhead=none]
+     A -> B
+     A -> D
+     B -> C
+     B -> D
+     B -> E
+     D -> F
+     F -> A
+     F -> G
+  }
+#+END_SRC
+
+#+RESULTS: example-graph
+[[file:example-graph.svg]]
+
+The git commit graph has some extra properties over a generic graph:
+
+ * Its edges have direction: they go from child to parent.  We usually
+   represent those with little arrows.  Such graphs are said to be
+   *directed*.
+ * It doesn’t have loops, or “cycles”: in the above example, there’s a loop
+   between A, D and F: you can “walk” the graph forever just between
+   those three nodes.  In the git history, you can start at any
+   commit, walk to its parent, and repeat: you’ll never hit a loop,
+   but will always arrive at a root commit with no parents.  The git
+   history is *acyclic*.
+
+A graph that is both directed and acyclic is called, guess what, a
+*directed acyclic graph*.  Quite a mouthful: they usually simply go by
+“DAG”.  The git history is a DAG.  Below is a simplified example of
+such an history.  Notice that, although time flows bottom to top (the
+most recent commit is a the top), arrows go top to bottom, to each
+commit’s *ancestors*.  This is because, as we’ve seen earlier, commits
+point to their parents, not their children.
+
+#+name: example-history
+#+BEGIN_SRC dot :file example-history.svg :cmdline -Tsvg
+    digraph T {
+     rankdir=BT
+     node [shape=box]
+     edge [dir=back]
+     A [label="(A) Initial commit"]
+     B [label="(B) Second commit"]
+     C [label="(C) Third commit on main branch"]
+     D [label="(D) Commit on feature branch"]
+     E [label="(E) Merge commit"]
+     F [label="(F) Most recent commit"]
+     A -> B
+     B -> C
+     B -> D
+     C -> E
+     D -> E
+     E -> F
+  }
+#+END_SRC
+
+#+RESULTS: example-history
+[[file:example-history.svg]]
+
+Notice the merge commit E, with two ancestors.  The two branches C and
+D (this may be the ~main~ branch and a feature branch) both diverged
+from a common ancestor B (an earlier state of ~main~) and got merged
+together in E.  The shape of the resulting graph is the reason the
+three-point merge (common ancestor + two variants) is also sometimes
+called a *diamond merge*.
+
+*** From a DAG to a Merkle DAG
+
+So the Git commit history is a directed acyclic graph, a DAG.  Its
+nodes are commits, and its edges are the references each commit stores
+to its parent(s).  This history has another notable feature: unlike
+regular graphs, the parents of a node (commit) are part of that
+commit’s identity.  This is because in git, real commits/nodes are not
+called A, B, C... like in the example above: their name, like the name
+of /any/ object git stores, is a cryptographic hash of its contents;
+and those contents include the name of its parent(s).  This means that
+the name of a commit is bound to its place in the complete history, up
+to the very first commit.
+
+This is something we’ve seen just before: the name of an object is not
+something we decide arbitrarily, but the result of applying the SHA-1
+function to that object, which gives names like
+~6db691fb5486e8f9653e3a63880c9b23885bdfd8~.  Those names are thus, in
+a way, not something we decide but something we /discover/.
+
+The fact that nodes (commits) are labeled after their contents make the git
+history a structure akin to what’s called a [[https://en.wikipedia.org/wiki/Merkle_tree][*Merkle tree*]].  A Merkle
+tree is a type of graph where each node is identified by the
+cryptographic hash of its contents and the contents of its children,
+up to the terminal leaves.  This means that the label of the root of
+the tree hashes both the structure of the tree and the contents of
+each node in that structure.  In other words, if you append anything
+to a Merkle tree, you modify the identity of all its ancestors.
+
+The actual data structure Git uses differs from a classical Merkle
+tree in two ways.
+
+First, it’s not actually a tree.  [[https://en.wikipedia.org/wiki/Tree_(abstract_data_type)][In computer science, a tree]] is a DAG
+whose nodes have at most one ancestor.  A merge commit, in git, has as
+many ancestors at commits it merges; like commit E in the above
+example. (you may still see the name “Merkle tree” used when talking
+about git history; but it’s technically incorrect).
+
+The second difference lies in the fact that in git, the hashing
+operations goes from the leaves to the root.  In a regular Merkle
+tree, adding an extra commit would change the root’s identity, since
+the root hashes its leaves.  But that would mean that adding a new
+commit would change the full history.  What git does is the exact
+opposite: you can freely append new commits to an existing history
+without altering it, but each new commit is bound to the entire
+history that precedes it.
+
+To understand how this works, let’s look at commit objects again.
+This is a commit, generated by the wyag test script:
+
+#+begin_example
+  tree 8a617fb80c95a1bb638911ae1162ead88282c0eb
+  parent b664cefa3649658a1dad03163d22cc37ddcd3b77
+  author wyag-tests.sh <wyag@example.com> 1262304123 +0100
+  committer wyag-tests.sh <wyag@example.com> 1262304123 +0100
+
+  Commit 2
+#+end_example
+
+As [[#object_write][we’ve seen earlier]], the identity of this object (its hash) is
+computed by hashing it down, along with a few extra headers, to a
+SHA-1 hex hash, giving us in that case
+~75ee472e7e7021b1639507e89da14b89bfa8987f~.  This means we cannot give
+it a different parent, or alter its tree, or change any other property
+of that commit without changing that hash id.
+
+To create a new commit with this one as its parent, the new commit
+need simply to have a corresponding ~parent~ field:
+
+#+begin_example
+  ...
+  parent 75ee472e7e7021b1639507e89da14b89bfa8987f
+  ...
+#+end_example
+
+This is the key difference with a regular Merkle tree.  Git nodes
+(commits) store references to their parent(s), not their children.
+Adding commits on top of existing commits has no effects on their
+ancestors.
+
+A fundamental property of that data structure is that you cannot
+modify, or even move, a node, without its name changing. To put it a
+bit more dramatically, this means that *nodes are immutable* --- you
+cannot change them or move them /at all/.  Operations you could think
+of as modifying a commit, like ~--amend~ or rebasing, actually create
+a new commit object, and leave the old one to be garbage collected
+later.
+
+This is why any change to an earlier state affects all subsequent
+states.  In the above example diagram of a git history, say I’ve
+accidentally committed a secret password in the commit I’ve called B.
+If I try to “modify” B, I’ll create a *new* commit B′ with a slightly
+different ~tree~ (without the leaked password).  Because its ~tree~ is
+different, B′ will have a different hash than B.  For B to “become”
+the parent of C and D, I need to copy C and D as C′ and D′, changing
+their ~parent~ fields to match the hash of B′.  And the same operation
+will repeat to create E′ at the child of C′ and D′, and so on.  This
+is what the resulting history will look like:
+
+#+name: example-history-rewrite
+#+BEGIN_SRC dot :file example-history-rewrite.svg :cmdline -Tsvg
+  digraph T {
+    rankdir=BT
+
+    edge [dir=back]
+    node [shape=box]
+
+    A [label="(A) Initial commit"]
+    B2 [label="(B′) Second commit (without the password)"]
+    C2 [label="(C′) Third commit on main branch"]
+    D2 [label="(D′) Commit on feature branch"]
+    E2 [label="(E′) Merge commit"]
+    F2 [label="(F′) Most recent commit"]
+
+    node [color=gray,fontcolor=gray,style=dotted]
+    B [label="(B) Second commit"]
+    C [label="(C) Third commit On main branch"]
+    D [label="(D) Commit on feature branch"]
+    E [label="(E) Merge commit"]
+    F [label="(F) Most recent commit"]
+
+    A -> B2
+
+    subgraph cluster_new_history {
+       B2 -> C2
+       B2 -> D2
+       C2 -> E2
+       D2 -> E2
+       E2 -> F2
+       label = "New, rewritten history";
+       };
+
+       edge [color=gray]
+       A -> B
+
+     subgraph cluster_old_history {
+       B -> C
+       B -> D
+       C -> E
+       D -> E
+       E -> F
+       label = "Old history (will be garbage collected at some point)";
+       style = dotted
+       color = gray
+       }
+    }
+#+END_SRC
+
+#+RESULTS: example-history-rewrite
+[[file:example-history-rewrite.svg]]
+
+Btw, this also means that the git history is *intrinsically* acyclic:
+since the identity of an object (its hash) depends recursively of the
+identity of each of its parents up to the root, a cycle would mean
+that this recursion never terminates.  In more practical term, trying
+to create a cycle with two objects both referring to the other at its
+parent would require to know the hash of the /other/ object before
+computing the other’s hash.
+
+#+begin_note
+  *Wait, this looks like a… blockchain?*
+
+  A very common use of Merkle trees is in the blockchains of so-called
+  “cryptocurrencies”.  In Bitcoin for example, the ledger is a Merkle
+  tree.  “Mining” consists in adding the new transactions to the
+  chain (that’s the easy part) and then finding a way to pad the block
+  with values that make the final hash start with a given number of
+  binary ones (this is the “proof of work” that intentionally keeps
+  the network slow and energy-consuming, in order to prevent it from diverging)
+
+  So yes, /in a way/, Git is a blockchain: it's a sequence of
   blocks (commits) tied together by cryptographic means in a way that
   guarantee that each single element is associated to the whole
   history of the structure.  Don't take the comparison too seriously,
@@ -1431,10 +1678,11 @@ All this hashed together in a unique SHA-1 identifier.
 :CUSTOM_ID: checkout
 :END:
 
-It's all well that commits hold a lot more than files and directories
-in a given state, but that doesn't make them really useful.  It's
-probably time to start implementing tree objects as well, so we'll be
-able to checkout commits into the work tree.
+Let’s resume working with commit objects.  It's nice to know that they
+hold a lot more than files and directories in a given state, but that
+doesn't make them really useful.  It's probably time to start
+implementing tree objects as well, so we'll be able to checkout
+commits into the work tree.
 
 ** What's in a tree?
 

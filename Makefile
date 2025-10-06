@@ -13,6 +13,7 @@ write-yourself-a-git.html: write-yourself-a-git.org wyag libwyag.py
     --eval "(setq python-indent-guess-indent-offset nil)" \
     --eval "(setq org-export-with-broken-links t)" \
 		--eval "(setq org-html-htmlize-output-type 'css)" \
+    --eval "(org-babel-do-load-languages 'org-babel-load-languages '((dot . t)))" \
     -f org-html-export-to-html
 
 write-yourself-a-git.pdf: write-yourself-a-git.org wyag libwyag.py
@@ -22,6 +23,7 @@ write-yourself-a-git.pdf: write-yourself-a-git.org wyag libwyag.py
     --eval "(setq org-confirm-babel-evaluate nil)" \
     --eval "(setq python-indent-guess-indent-offset nil)" \
     --eval "(setq org-export-with-broken-links t)" \
+    --eval "(org-babel-do-load-languages 'org-babel-load-languages '((dot . t)))" \
     -f org-latex-export-to-pdf
 
 wyag libwyag.py: write-yourself-a-git.org
