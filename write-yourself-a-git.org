@@ -81,7 +81,7 @@ Implementing Git will expose its fundamentals in all their naked
 glory.
 
 *What to expect?*  This article will implement and explain in great
-details (if something is not clear, please [[#feedback][report it]]!) a very
+detail (if something is not clear, please [[#feedback][report it]]!) a very
 simplified version of Git core commands.  I will keep the code simple
 and to the point, so =wyag= won't come anywhere near the power of the
 real git command-line --- but what's missing will be obvious, and
