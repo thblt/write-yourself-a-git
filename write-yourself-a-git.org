@@ -1542,8 +1542,8 @@ some invalid trees by accident writing wyag, and all I got was weird
 bugs in =git status= (specifically, =status= would report an actually
 clean worktree as fully modified).  We don't want that.
 
-The ordering function is quite simple, with an unexpected twist.  are
-Entries sorted by name, alphabetically, /but/ directories (that is,
+The ordering function is quite simple, with an unexpected twist. Entries
+are sorted by name, alphabetically, /but/ directories (that is,
 tree entries) are sorted with a final =/= added.  It matters, because
 it means that if =whatever= names a regular file, it will sort
 /before/ =whatever.c=, but if =whatever= is a dir, it will sort
