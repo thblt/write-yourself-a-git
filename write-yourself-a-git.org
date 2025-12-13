@@ -854,7 +854,7 @@ object's format.
               case b'tag'    : c=GitTag
               case b'blob'   : c=GitBlob
               case _:
-                  raise Exception(f"Unknown type {fmt.decode("ascii")} for object {sha}")
+                  raise Exception(f"Unknown type {fmt.decode('ascii')} for object {sha}")
 
           # Call constructor and return object
           return c(raw[y+1:])
@@ -1641,7 +1641,7 @@ paths.
               case _: raise Exception(f"Weird tree leaf mode {item.mode}")
 
           if not (recursive and type=='tree'): # This is a leaf
-              print(f"{'0' * (6 - len(item.mode)) + item.mode.decode("ascii")} {type} {item.sha}\t{os.path.join(prefix, item.path)}")
+              print(f"{'0' * (6 - len(item.mode)) + item.mode.decode('ascii')} {type} {item.sha}\t{os.path.join(prefix, item.path)}")
           else: # This is a branch, recurse
               ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
 #+END_SRC
