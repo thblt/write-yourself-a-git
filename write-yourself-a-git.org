@@ -429,7 +429,7 @@ filesystem locations.
           if not force:
               vers = int(self.conf.get("core", "repositoryformatversion"))
               if vers != 0:
-                  raise Exception("Unsupported repositoryformatversion: {vers}")
+                  raise Exception(f"Unsupported repositoryformatversion: {vers}")
 #+END_SRC
 
 We're going to be manipulating *lots* of paths in repositories.  We may
@@ -2141,7 +2141,7 @@ steps, since tags themselves can be tagged)
           raise Exception(f"No such reference {name}.")
 
       if len(sha) > 1:
-          raise Exception("Ambiguous reference {name}: Candidates are:\n - {'\n - '.join(sha)}.")
+          raise Exception(f"Ambiguous reference {name}: Candidates are:\n - {'\n - '.join(sha)}.")
 
       sha = sha[0]
 
