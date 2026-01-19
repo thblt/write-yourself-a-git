@@ -194,6 +194,14 @@ Then make it executable:
 
 You're done!
 
+For Windows users, you can additionally make a bat file to let you
+run the command from the command line without having to type the file
+extension:
+
+#+BEGIN_SRC bat :tangle wyag.bat
+  python wyag %*
+#+END_SRC
+
 # This is a noweb template to include in all three source files.
 #+NAME: file_header
 #+BEGIN_SRC shell :exports none

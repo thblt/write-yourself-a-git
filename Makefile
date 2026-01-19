@@ -1,6 +1,6 @@
 all: article program
 article: write-yourself-a-git.html
-program: wyag libwyag.py
+program: wyag wyag.bat libwyag.py
 push: .last_push
 
 .PHONY: all article clean program push test
@@ -24,11 +24,11 @@ write-yourself-a-git.pdf: write-yourself-a-git.org wyag libwyag.py
     --eval "(setq org-export-with-broken-links t)" \
     -f org-latex-export-to-pdf
 
-wyag libwyag.py: write-yourself-a-git.org
+wyag wyag.bat libwyag.py: write-yourself-a-git.org
 	emacs --batch write-yourself-a-git.org -f org-babel-tangle
 
 wyag.zip: wyag libwyag.py LICENSE
-	zip -r wyag.zip wyag libwyag.py LICENSE
+	zip -r wyag.zip wyag wyag.bat libwyag.py LICENSE
 
 clean:
 	rm -f wyag libwyag.py write-yourself-a-git.html .last_push wyag.zip
