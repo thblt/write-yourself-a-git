@@ -1,1 +1,2 @@
+#!/bin/sh
 make all && ./wyag-tests.sh
