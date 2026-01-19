@@ -3567,7 +3567,7 @@ and the message:
 # @TODO Explain them!
 
 #+begin_src python :tangle libwyag.py
-  def commit_create(repo, tree, parent, author, timestamp, message):
+  def commit_create(repo, tree, parent, author, timestamp: datetime, message):
       commit = GitCommit() # Create the new commit object.
       commit.kvlm[b"tree"] = tree.encode("ascii")
       if parent:
@@ -3581,7 +3581,7 @@ and the message:
       minutes = (offset % 3600) // 60
       tz = "{}{:02}{:02}".format("+" if offset > 0 else "-", hours, minutes)
 
-      author = author + timestamp.strftime(" %s ") + tz
+      author = author + " " + int(timestamp.timestamp()) + " " + tz
 
       commit.kvlm[b"author"] = author.encode("utf8")
       commit.kvlm[b"committer"] = author.encode("utf8")
