@@ -1,0 +1,24 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: purcell/setup-emacs@master
+      with:
+         version: 30.2 # Picked arbitrarily, specified for stability
+
+    - name: make
+      run: make all
+
+    - name: Run pre-commit
+      run: ./pre-commit
