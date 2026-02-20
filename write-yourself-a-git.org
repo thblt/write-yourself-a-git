@@ -1649,6 +1649,20 @@ paths.
               ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
 #+END_SRC
 
+Which looks like this:
+
+#+begin_example
+$ ./wyag ls-tree HEAD
+100644 blob 0e03663b6cefce83bea24d48d9c887c4bc011025    .gitignore
+100644 blob 9cb35991783976a6c5fc51013f429940f63e08fb    .gitmodules
+100644 blob 94a9ed024d3859793618152ea559a168bbcbb5e2    LICENSE
+100644 blob 25846e47b3da80a34190b4d60c149589428b4957    Makefile
+100644 blob e0695f14a412c29e252c998c81de1dde59658e4a    README.org
+040000 tree 7e8315f7ba77e713da38e84d8af3ffc5b80b6e00    lib
+100644 blob aafc00f9f92091f141982363e0a16f612819e19f    write-yourself-a-git.org
+100755 blob ec673d798f6a5a4273a89543d6a667be3836bd37    wyag-tests.sh
+#+end_example
+
 ** The checkout command
 :PROPERTIES:
 :CUSTOM_ID: cmd-checkout
