@@ -39,6 +39,6 @@ test: wyag libwyag.py
 	./wyag-tests.sh
 
 .last_push: wyag.zip write-yourself-a-git.html
-	 scp -r write-yourself-a-git.html k9.thb.lt\:/var/www/wyag.thb.lt/index.html; \
-   scp -r wyag.zip lib/org-html-themes/src k9.thb.lt:/var/www/wyag.thb.lt/; \
-   touch .last_push
+	scp -r write-yourself-a-git.html k9.thb.lt\:/var/www/wyag.thb.lt/index.html; \
+	scp -r *.svg wyag.zip lib/org-html-themes/src k9.thb.lt:/var/www/wyag.thb.lt/; \
+	touch .last_push
