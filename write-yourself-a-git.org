@@ -31,12 +31,28 @@
 :CUSTOM_ID: intro
 :END:
 
-#+begin_note
-  Recent changes (January 2025):
 
-   - =OrderedDict= have been replaced by regular dicts.
-   - Most string formatting have been replaced with f-strings.
-   - Multible bugs fixed in =tag_create=.
+#+NAME: monthyear
+#+begin_src emacs-lisp :exports none
+  (format-time-string "%B %Y")
+#+end_src
+
+#+NAME: log
+#+begin_src emacs-lisp :exports none :results raw
+  (let*
+      ((now (decode-time (current-time)))
+       (year (nth 5 now))
+       (month (nth 4 now))
+       (gitlog (format "git log --since %s-%02d-01 | grep \"^ *NEWS:\" | sed \"s/^ *NEWS:/ - /\"" (- year 1) month)))
+    (progn
+      (message gitlog)
+    (shell-command-to-string gitlog)))
+#+end_src
+
+#+begin_note
+  Recent changes (last updated call_monthyear()):
+
+  #+CALL: log()
 #+end_note
 
 This article is an attempt at explaining the [[https://git-scm.com/][Git version control
