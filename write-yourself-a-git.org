@@ -170,6 +170,8 @@ some basic Git (obviously), some basic Python, some basic shell.
   - GitHub user [[https://github.com/cutebbb][cutebbb]] implemented the first version of ls-files in
     [[https://github.com/thblt/write-yourself-a-git/pull/32/][#32]], and by doing so finally brought wyag to the wonders of the
     staging area!
+  - Manuel Pégourié-Gonnard solved the mystery of [[#writing_trees][tree objects’
+    strange sorting rules]].
 #+end_note
 
 * Getting started
@@ -1736,7 +1738,7 @@ records of the format:
   *mode*, stored in ASCII. For example, 100644 is encoded with byte
   values 49 (ASCII "1"), 48 (ASCII "0"), 48, 54, 52, 52.  The first
   two digits encode the file type (file, directory, symlink or
-  submodule), the last four the permissions.
+  submodule), the last four its permissions.
 - It's followed by 0x20, an ASCII *space*;
 - Followed by the null-terminated (0x00) *path*;
 - Followed by the object's *SHA-1* in binary encoding, on 20 bytes.
@@ -1797,6 +1799,11 @@ until input data is exhausted.
       return ret
 #+END_SRC
 
+** Writing trees
+:PROPERTIES:
+:CUSTOM_ID: writing_trees
+:END:
+
 We'll finally need a serializer to write trees back.  Because we may
 have added or modified entries, we need to sort them again.
 Consistently sorting matters, because we need to respect git's
@@ -1809,14 +1816,24 @@ some invalid trees by accident writing wyag, and all I got was weird
 bugs in =git status= (specifically, =status= would report an actually
 clean worktree as fully modified).  We don't want that.
 
-The ordering function is quite simple, with an unexpected twist. Entries
-are sorted by name, alphabetically, /but/ directories (that is,
-tree entries) are sorted with a final =/= added.  It matters, because
-it means that if =whatever= names a regular file, it will sort
-/before/ =whatever.c=, but if =whatever= is a dir, it will sort
-/after/, as =whatever/=. (I'm not sure why git does that.  If you're
-curious, see the function =base_name_compare= in =tree.c= in the git
-source)
+The ordering function is quite simple, with a minor twist. Entries are
+sorted by name, alphabetically, /but/ names of directories (that is,
+tree entries) are padded right with a single slash, =/=.  If =foo= is
+a regular file, it will sort /before/ =foo.c=, but if =foo= is a
+directory, it will sort /after/, as =foo/=.  The consequence (and
+probable cause) of this extra rule is that ~git ls-tree -r~ can simply
+iterate over the objects and output a list of paths in [[https://en.wikipedia.org/wiki/Lexicographic_order][lexicographic
+order]]:
+
+#+Begin_example
+  $ git ls-tree -r HEAD
+  foo.c
+  foo/bar.c
+#+end_example
+
+This padding is only considered during sorting: the final =/= never
+appears in the tree object itself.  This small function adds the final
+=/= to directory names for sorting:
 
 #+begin_src python :tangle libwyag.py
   # Notice this isn't a comparison function, but a conversion function.
