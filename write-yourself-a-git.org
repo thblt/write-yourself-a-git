@@ -3579,8 +3579,8 @@ index stores: creation/modification time, and so on)
       clean_paths = set()
       for path in paths:
           abspath = os.path.abspath(path)
-          if not (abspath.startswith(worktree) and os.path.isfile(abspath)):
-              raise Exception(f"Not a file, or outside the worktree: {paths}")
+          if not os.path.isfile(abspath):
+              raise Exception(f"Not a file")
           relpath = os.path.relpath(abspath, repo.worktree)
           clean_paths.add((abspath,  relpath))
 
