@@ -2556,7 +2556,7 @@ mechanism, in the form of what it calls the *index file*.
 After a commit, the index file is a sort of copy of that commit: it
 holds the same path/blob association than the corresponding tree.  But
 it also holds extra information about files in the worktree, like
-their creation/modification time, so =git status= doesn't often need
+their metadata modification/modification time, so =git status= doesn't often need
 to actually compare files: it just checks that their modification time
 is the same as the one stored in the index file, and only if it isn't
 does it perform an actual comparison.
@@ -2726,10 +2726,10 @@ produce more elegant code in C than in Python…)
       content = raw[12:]
       idx = 0
       for i in range(0, count):
-          # Read creation time, as a unix timestamp (seconds since
+          # Read metadata modification time, as a unix timestamp (seconds since
           # 1970-01-01 00:00:00, the "epoch")
           ctime_s = int.from_bytes(content[idx: idx+4], "big")
-          # Read creation time, as nanoseconds after that timestamps,
+          # Read metadata modification time, as nanoseconds after that timestamps,
           # for extra precision.
           ctime_ns = int.from_bytes(content[idx+4: idx+8], "big")
           # Same for modification time: first seconds from epoch.
@@ -2842,7 +2842,7 @@ so we can display every single bit of info in the index file.
                              0b1110: "git link" }[e.mode_type]
               print(f"  {entry_type} with perms: {e.mode_perms:o}")
               print(f"  on blob: {e.sha}")
-              print(f"  created: {datetime.fromtimestamp(e.ctime[0])}.{e.ctime[1]}, modified: {datetime.fromtimestamp(e.mtime[0])}.{e.mtime[1]}")
+              print(f"  metadata modified: {datetime.fromtimestamp(e.ctime[0])}.{e.ctime[1]}, modified: {datetime.fromtimestamp(e.mtime[0])}.{e.mtime[1]}")
               print(f"  device: {e.dev}, inode: {e.ino}")
               try:
                   print(f"  user: {pwd.getpwuid(e.uid).pw_name} ({e.uid})  group: {grp.getgrgid(e.gid).gr_name} ({e.gid})")
@@ -3564,7 +3564,7 @@ PATH is one or more file(s) to stage.  The bridge is as boring as can be.
 The main difference with =rm= is that =add= needs to create an index
 entry.  This isn't hard: we just =stat()= the file and copy the
 metadata in the index's field (=stat()= returns those metadata the
-index stores: creation/modification time, and so on)
+index stores: metadata modification/modification time, and so on)
 
 #+BEGIN_SRC python :tangle libwyag.py
   def add(repo, paths, delete=True, skip_missing=False):
