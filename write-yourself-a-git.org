@@ -171,7 +171,7 @@ some basic Git (obviously), some basic Python, some basic shell.
     [[https://github.com/thblt/write-yourself-a-git/pull/32/][#32]], and by doing so finally brought wyag to the wonders of the
     staging area!
   - Manuel Pégourié-Gonnard solved the mystery of [[#writing_trees][tree objects’
-    strange sorting rules]].
+    strange sorting rules]], and improved ~tree_leaf_sort_key~.
 #+end_note
 
 * Getting started
@@ -1842,10 +1842,10 @@ appears in the tree object itself.  This small function adds the final
   # value, which is compared using the default rules.  So we just return
   # the leaf name, with an extra / if it's a directory.
   def tree_leaf_sort_key(leaf):
-      if leaf.mode.startswith(b"10"):
-          return leaf.path
-      else:
+      if leaf.mode.startswith(b"4"):
           return leaf.path + "/"
+      else:
+          return leaf.path
 #+end_src
 
 Then the serializer itself.  This one is very simple: we sort the
