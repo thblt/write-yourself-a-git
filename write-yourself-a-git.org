@@ -3567,7 +3567,8 @@ and the message:
 # @TODO Explain them!
 
 #+begin_src python :tangle libwyag.py
-  def commit_create(repo, tree, parent, author, timestamp: datetime, message):
+  def commit_create(repo, tree, parent, author, timestamp, message):
+  # Note: for the timestamp argument, you must provide a datetime object.
       commit = GitCommit() # Create the new commit object.
       commit.kvlm[b"tree"] = tree.encode("ascii")
       if parent:
