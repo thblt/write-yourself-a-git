@@ -2729,7 +2729,7 @@ produce more elegant code in C than in Python…)
           # Read creation time, as a unix timestamp (seconds since
           # 1970-01-01 00:00:00, the "epoch")
           ctime_s = int.from_bytes(content[idx: idx+4], "big")
-          # Read creation time, as nanoseconds after that timestamps,
+          # Read creation time, as nanoseconds after that timestamp,
           # for extra precision.
           ctime_ns = int.from_bytes(content[idx+4: idx+8], "big")
           # Same for modification time: first seconds from epoch.
