@@ -2471,8 +2471,8 @@ steps, since tags themselves can be tagged)
 With the new =object_find()=, the CLI wyag becomes a bit more usable.  You can now do things like:
 
 #+begin_example
-$ wyag checkout v3.11 # A tag
-$ wyag checkout feature/explosions # A branch
+$ wyag checkout v3.11 tmp/ # A tag
+$ wyag checkout feature/explosions tmp/ # A branch
 $ wyag ls-tree -r HEAD # The active branch or commit.  There's also a
                        # follow here: HEAD is actually a commit.
 $ wyag cat-file blob e0695f # A short hash
