@@ -3877,7 +3877,7 @@ and the message:
       minutes = (offset % 3600) // 60
       tz = "{}{:02}{:02}".format("+" if offset > 0 else "-", hours, minutes)
 
-      author = author + " " + int(timestamp.timestamp()) + " " + tz
+      author = author + " " + str(int(timestamp.timestamp())) + " " + tz
 
       commit.kvlm[b"author"] = author.encode("utf8")
       commit.kvlm[b"committer"] = author.encode("utf8")
