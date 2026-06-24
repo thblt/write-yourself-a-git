@@ -9,3 +9,9 @@ Wyag is a [[https://en.wikipedia.org/wiki/Literate_programming][literate program
   $ cd write-yourself-a-git
   $ make all
 #+end_src
+
+If you'd like to set up the pre-commit file for git, then:
+#+begin_src shell
+  $ cp pre-commit .git/hooks/
+  $ chmod +x .git/hooks/pre-commit
+#+end_src
